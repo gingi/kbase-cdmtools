@@ -21,6 +21,11 @@ Readonly my %GFF3FIELDS => (
     score       => 7,
     extra       => 8
 );
+Readonly my %CONVERT_FTYPE => (
+    gene => 'locus',
+    mRNA => 'mRNA',
+    CDS  => 'CDS',
+);
 Readonly my @USABLE_TYPES => qw/gene mRNA CDS/;
 
 MAIN: {
@@ -30,7 +35,7 @@ MAIN: {
 
     pod2usage(-verbose => 1) if $options{help};
     pod2usage(-verbose => 2) if $options{man};
-    
+
     my ($infh, $outfh);
 
     if (!defined($options{gff})) {
@@ -76,8 +81,9 @@ sub read_gff3 {
 
     # Read features from GFF3
     while (my $line = <$fh>) {
+        next if ($line =~ m/^\s*#/);
         chomp $line;
-        @fields = split("\t", $line, 9);
+        @fields = split(/\s+/, $line, 9);
         next unless (grep { $_ eq $f->('type') } @USABLE_TYPES);
         my %extra = map { m/(\S+)\s*=\s*(\S+)/; lc $1 => $2; }
             split(";", $f->('extra'));
@@ -155,8 +161,8 @@ sub assign_feature_id {
     if (scalar keys %Identifiers == 0) {
         %Identifiers = map { $_ => 1 } @USABLE_TYPES;
     }
-    $feature->id
-        = sprintf('%s%.5d', $feature->type, $Identifiers{ $feature->type }++);
+    $feature->id = sprintf('%s%.5d', lc $feature->type,
+        $Identifiers{ $feature->type }++);
 }
 
 package Feature;
@@ -216,13 +222,13 @@ sub location {
             map {
                 sprintf('%s_%d%s%d',
                     $_->{map}, $_->{start}, $_->{orientation},
-                    $_->{end} - $_->{start} + 1);
+                    $_->{end} - $_->{start});
                 } @{ $self->{locations} }
         );
     }
     return sprintf('%s_%d%s%d',
         $self->map, $self->start, $self->orientation,
-        $self->end - $self->start + 1);
+        $self->end - $self->start);
 }
 
 sub nth_location {
@@ -247,7 +253,8 @@ sub location_tuple {
 sub to_string {
     my $self = shift;
     return join("\t",
-        $self->id, $self->type,
+        $self->id,
+        $CONVERT_FTYPE{ $self->type },
         $self->parent || '.',
         $self->name   || '.',
         $self->location);
