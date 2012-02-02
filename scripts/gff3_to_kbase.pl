@@ -21,12 +21,8 @@ Readonly my %GFF3FIELDS => (
     score       => 7,
     extra       => 8
 );
-Readonly my %CONVERT_FTYPE => (
-    gene => 'locus',
-    mRNA => 'mRNA',
-    CDS  => 'CDS',
-);
-Readonly my @USABLE_TYPES => qw/gene mRNA CDS/;
+Readonly my %KBASE_FTYPE => (gene => 'locus',);
+Readonly my @USABLE_TYPES => qw/gene exon mRNA CDS/;
 
 MAIN: {
     my %options;
@@ -77,80 +73,114 @@ sub read_gff3 {
     my (@fields);
     my $f = sub { $fields[ $GFF3FIELDS{ shift() } ] };
 
-    my $lines = 0;
-
     # Read features from GFF3
     while (my $line = <$fh>) {
         next if ($line =~ m/^\s*#/);
         chomp $line;
         @fields = split(/\s+/, $line, 9);
         next unless (grep { $_ eq $f->('type') } @USABLE_TYPES);
-        my %extra = map { m/(\S+)\s*=\s*(\S+)/; lc $1 => $2; }
+        my %extra = map { m/(\S+)\s*=\s*(\S+)/; lc($1) => $2; }
             split(";", $f->('extra'));
 
         # Hash by type/location, not ID (which could be undefined)
         my $hashkey = join(':', map { $f->($_) } qw/type map start end/);
         my $id      = $extra{id};
-        my $feature = Feature->new();
-        $feature->id          = $id;
-        $feature->type        = $f->('type');
-        $feature->map         = $f->('map');
-        $feature->start       = $f->('start');
-        $feature->end         = $f->('end');
-        $feature->orientation = $f->('orientation');
-        $feature->name        = $extra{name};
-        $feature->parent      = $extra{parent};
-        if (defined $feature->parent) {
-            $feature->parent
-                =~ s/,.*$//;   # Stripping extra parents. TODO: Is this smart?
-            my $parent = $parents{ $feature->parent };
-            if (!defined $parent) {
-                $orphans{$hashkey} = 1;
-            } else {
-                my $children = $parent->children;
-                push @$children, $feature;
-                if ($feature->id) { $parents{ $feature->id } = $feature; }
+        my $feature = KbaseExchangeFeature->new();
+        $feature->id   = $id;
+        $feature->type = $f->('type');
+        $feature->add_location(
+            map         => $f->('map'),
+            start       => $f->('start'),
+            end         => $f->('end'),
+            orientation => $f->('orientation')
+        );
+        $feature->name = $extra{name};
+        my (@parent_ids);
+
+        if ($extra{parent}) {
+            @parent_ids = split(',', $extra{parent});
+        }
+
+        if (scalar @parent_ids) {
+            for my $parent_id (@parent_ids) {
+                my $parent = $parents{$parent_id};
+                if (!defined $parent) {
+                    $orphans{$hashkey} = 1;
+                } else {
+                    $parent->add_child($feature);
+                    $feature->add_parent($parent);
+                    if ($feature->id) { $parents{ $feature->id } = $feature; }
+                }
             }
         } else {
             $parents{ $feature->id } = $feature;
             push @features, $feature;
         }
-        $lines++;
-
-        # print $feature->to_string, "\n";
     }
-    compress_features(\@features);
+    for my $feature (@features) {
+        compress_features($feature, '');
+    }
     return \@features;
 }
 
+sub print_feature {
+    my ($feature, $indent) = @_;
+    $indent ||= '';
+    print $indent, $feature->to_string, "\n";
+    for my $child (@{ $feature->children }) {
+        print_feature($child, "   $indent");
+    }
+}
+
 sub compress_features {
-    my ($features) = @_;
+    my ($feature, $indent) = @_;
 
-    for my $feature (@$features) {
-        my @children = @{ $feature->children };
-        next unless scalar @children;
-        my $first_child = $children[0];
-        if (defined $first_child->id && $first_child->id ne '') {
-            compress_features(\@children);
+    $indent ||= "";
+    return unless scalar @{ $feature->children };
+
+    # print $indent, $feature->to_string, "\n";
+    if ($feature->type eq 'mRNA') {
+        merge_children($feature);
+        assign_mrna_locations($feature);
+    } else {
+        for my $child (@{ $feature->children }) {
+            compress_features($child, "   $indent");
+        }
+    }
+}
+
+sub merge_children {
+    my ($feature) = @_;
+    my %new_children = ();
+    my @to_delete    = ();
+    for (my $i = 0; $i < scalar @{ $feature->children }; $i++) {
+        my $child = $feature->children->[$i];
+
+        if (!defined $child->id || $child->id eq '') {
+            assign_feature_id($child);
+        }
+        my $new_child = $new_children{ $child->id };
+        if (defined $new_child) {
+            $new_child->merge_locations($child);
+            push @to_delete, $child;
         } else {
-            assign_feature_id($first_child);
+            $new_children{ $child->id } = $child;
         }
+    }
+    $feature->children
+        = [ map { $new_children{$_} } sort keys %new_children ];
+}
 
-        # Assign location of mRNA based on component CDS features
-        if ($feature->type eq 'mRNA' && $first_child->type eq 'CDS') {
-            my $mrna_end = $feature->end;
-            $feature->end = $first_child->end;
-            for (my $i = 1; $i <= $#children; $i++) {
-                $feature->merge_location($children[$i]);
-            }
-            $feature->nth_location($#children)->{end} = $mrna_end;
+sub assign_mrna_locations {
+    my ($mrna) = @_;
+    $mrna->clear_locations();
+    for my $exon (@{ $mrna->children_by_type('exon') }) {
+        $mrna->merge_locations($exon);
+    }
+    for (my $i = 0; $i < scalar @{ $mrna->children }; $i++) {
+        if ($mrna->children->[$i]->type eq 'exon') {
+            delete $mrna->children->[$i];
         }
-
-        for (my $i = 1; $i <= $#children; $i++) {
-            $first_child->merge_location($children[$i]);
-            delete $feature->children->[$i];
-        }
-        $feature->set_children([$first_child]);
     }
 }
 
@@ -165,7 +195,7 @@ sub assign_feature_id {
         $Identifiers{ $feature->type }++);
 }
 
-package Feature;
+package KbaseExchangeFeature;
 
 sub new {
     my $class = shift;
@@ -173,27 +203,12 @@ sub new {
     my $self = bless {}, $class;
     $self->{children}  = [];
     $self->{locations} = [];
+    $self->{parents}   = [];
     $self;
 }
 
 sub id : lvalue {
     shift->{id};
-}
-
-sub map : lvalue {
-    shift->{map};
-}
-
-sub start : lvalue {
-    shift->{start};
-}
-
-sub end : lvalue {
-    shift->{end};
-}
-
-sub orientation : lvalue {
-    shift->{ori};
 }
 
 sub type : lvalue {
@@ -204,59 +219,85 @@ sub name : lvalue {
     shift->{name};
 }
 
-sub parent : lvalue {
-    shift->{parent};
+sub parents : lvalue {
+    shift->{parents};
 }
-sub children { shift->{children} }
 
-sub set_children {
-    my ($self, $children) = @_;
-    $self->{children} = $children;
+sub add_parent {
+    my ($self, $parent) = @_;
+    push @{ $self->{parents} }, $parent;
+}
+
+sub children : lvalue {
+    shift->{children};
+}
+
+sub children_by_type {
+    my ($self, $type) = @_;
+    return [ grep { $_->type eq $type } @{ $self->children } ];
+}
+
+sub add_child {
+    my ($self, $child) = @_;
+    push @{ $self->{children} }, $child;
+}
+
+sub clear_locations {
+    shift->{locations} = [];
+}
+
+sub add_location {
+    my $self      = shift;
+    my %params    = ref($_[0]) eq 'HASH' ? %{ $_[0] } : @_;
+    my $found     = 0;
+    my $locations = $self->{locations};
+    for my $loc (@$locations) {
+        if (   $loc->{map} eq $params{map}
+            && $loc->{start} == $params{start}
+            && $loc->{end} == $params{end}
+            && $loc->{orientation} eq $params{orientation})
+        {
+            $found = 1;
+        }
+    }
+    if (not $found) {
+        push @$locations, {%params};
+        @$locations = sort { $a->{start} <=> $b->{start} } @$locations;
+    }
 }
 
 sub location {
     my $self = shift;
-    if (scalar @{ $self->{locations} } > 0) {
-        return join(
-            ';',
-            map {
-                sprintf('%s_%d%s%d',
-                    $_->{map}, $_->{start}, $_->{orientation},
-                    $_->{end} - $_->{start});
-                } @{ $self->{locations} }
-        );
-    }
-    return sprintf('%s_%d%s%d',
-        $self->map, $self->start, $self->orientation,
-        $self->end - $self->start);
+    return join(
+        ',',
+        map {
+            sprintf('%s_%d%s%d',
+                $_->{map}, $_->{start}, $_->{orientation},
+                $_->{end} - $_->{start});
+            } @{ $self->{locations} }
+    );
 }
 
 sub nth_location {
     my ($self, $n) = @_;
-    return $self->location_tuple if (scalar @{ $self->{locations} } == 0);
     return $self->{locations}->[ $n - 1 ];
 }
 
-sub merge_location {
+sub merge_locations {
     my ($self, $other) = @_;
-    $self->{locations} ||= [ $self->location_tuple ];
-
-# print "Merging location ", join(" ", map { $other->location_tuple->{$_} } qw/map start end/), "\n";
-    push @{ $self->{locations} }, $other->location_tuple;
-}
-
-sub location_tuple {
-    my $self = shift;
-    return +{ map { $_ => $self->$_ } qw/map start end orientation/ };
+    for my $loc (@{ $other->{locations} }) {
+        $self->add_location($loc);
+    }
 }
 
 sub to_string {
     my $self = shift;
+    my $parent_id
+        = scalar @{ $self->parents } ? $self->parents->[0]->id : '.';
     return join("\t",
-        $self->id,
-        $CONVERT_FTYPE{ $self->type },
-        $self->parent || '.',
-        $self->name   || '.',
+        $self->id                   || '.',
+        $KBASE_FTYPE{ $self->type } || $self->type,
+        $parent_id, $self->name     || '.',
         $self->location);
 }
 
