@@ -118,7 +118,7 @@ sub read_gff3 {
         }
     }
     for my $feature (@features) {
-        compress_features($feature, '');
+        compress_features($feature);
     }
     return \@features;
 }
@@ -133,42 +133,44 @@ sub print_feature {
 }
 
 sub compress_features {
-    my ($feature, $indent) = @_;
+    my ($feature) = @_;
 
-    $indent ||= "";
     return unless scalar @{ $feature->children };
 
-    # print $indent, $feature->to_string, "\n";
     if ($feature->type eq 'mRNA') {
-        merge_children($feature);
+        merge_cds($feature);
         assign_mrna_locations($feature);
     } else {
         for my $child (@{ $feature->children }) {
-            compress_features($child, "   $indent");
+            compress_features($child);
         }
     }
 }
 
-sub merge_children {
-    my ($feature) = @_;
+sub merge_cds {
+    my ($feature)    = @_;
     my %new_children = ();
-    my @to_delete    = ();
-    for (my $i = 0; $i < scalar @{ $feature->children }; $i++) {
-        my $child = $feature->children->[$i];
-
-        if (!defined $child->id || $child->id eq '') {
-            assign_feature_id($child);
+    my $new_id       = ();
+    for my $cds (@{ $feature->children_by_type('CDS') }) {
+        if (!defined $cds->id || $cds->id eq '') {
+            if (defined $new_id) {
+                $cds->id = $new_id;
+            } else {
+                assign_feature_id($cds);
+                $new_id = $cds->id;
+            }
         }
-        my $new_child = $new_children{ $child->id };
+        my $new_child = $new_children{ $cds->id };
         if (defined $new_child) {
-            $new_child->merge_locations($child);
-            push @to_delete, $child;
+            $new_child->merge_locations($cds);
         } else {
-            $new_children{ $child->id } = $child;
+            $new_children{ $cds->id } = $cds;
         }
     }
-    $feature->children
-        = [ map { $new_children{$_} } sort keys %new_children ];
+    $feature->delete_children_by_type('CDS');
+    for my $cds (sort { $a->id cmp $b->id } values %new_children) {
+        $feature->add_child($cds);
+    }
 }
 
 sub assign_mrna_locations {
@@ -177,11 +179,7 @@ sub assign_mrna_locations {
     for my $exon (@{ $mrna->children_by_type('exon') }) {
         $mrna->merge_locations($exon);
     }
-    for (my $i = 0; $i < scalar @{ $mrna->children }; $i++) {
-        if ($mrna->children->[$i]->type eq 'exon') {
-            delete $mrna->children->[$i];
-        }
-    }
+    $mrna->delete_children_by_type('exon');
 }
 
 sub assign_feature_id {
@@ -240,6 +238,15 @@ sub children_by_type {
 sub add_child {
     my ($self, $child) = @_;
     push @{ $self->{children} }, $child;
+}
+
+sub delete_children_by_type {
+    my ($self, $type) = @_;
+    for (my $i = $#{ $self->children }; $i >= 0; $i--) {
+        if ($self->children->[$i]->type eq $type) {
+            splice(@{ $self->children }, $i, 1);
+        }
+    }
 }
 
 sub clear_locations {
