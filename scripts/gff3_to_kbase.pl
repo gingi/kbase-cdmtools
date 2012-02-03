@@ -279,8 +279,8 @@ sub location {
         ',',
         map {
             sprintf('%s_%d%s%d',
-                $_->{map}, $_->{start}, $_->{orientation},
-                $_->{end} - $_->{start});
+                $_->{map}, $_->{orientation} eq '+' ? $_->{start} : $_->{end},
+                $_->{orientation}, $_->{end} - $_->{start} + 1);
             } @{ $self->{locations} }
     );
 }
