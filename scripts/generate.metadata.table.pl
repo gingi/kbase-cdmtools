@@ -168,7 +168,7 @@ eSQL
         # But we don't -really- trust the ensembl database to properly
         # populate the classification. So we use BioPerl instead.
         my $biodb = Bio::DB::Taxonomy->new('-source' => 'entrez');
-        my $taxonid = $biodb->get_taxonid('Homo sapiens');
+
         my $node = $biodb->get_Taxonomy_Node(-taxonid => $output->{'taxonomy-id'});
         if (defined $node) {
             my @classification = ();
