@@ -169,7 +169,7 @@ eSQL
         # populate the classification. So we use BioPerl instead.
         my $biodb = Bio::DB::Taxonomy->new('-source' => 'entrez');
 
-        my $node = $biodb->get_Taxonomy_Node(-taxonid => $output->{'taxonomy-id'});
+        my $node =$biodb->get_Taxonomy_Node(-taxonid=>$output->{'taxonomy-id'});
         if (defined $node) {
             my @classification = ();
             do {
@@ -179,7 +179,7 @@ eSQL
             $output->{'classification'} = \@classification if @classification;
         }
         else {
-            print STDERR "\tNo entrez classification. Using unsorted Ensembl DB values";
+            print STDERR "\tNo entrez classification. Using unsorted DB values";
         }
     }
     
@@ -211,7 +211,7 @@ eSQL
     foreach my $output_key (
         grep { defined $output->{$_} }
         map  { $data_key_map->{$_}->{'key'} }
-        sort { $data_key_map->{$a}->{'order'} <=> $data_key_map->{$b}->{'order'} }
+        sort {$data_key_map->{$a}->{'order'} <=> $data_key_map->{$b}->{'order'}}
         keys %$data_key_map
             ) {
         
@@ -243,7 +243,8 @@ __END__
 
 =head1 NAME
 
-generate.metadata.table.pl - Generate metadata.tbl files from Ensembl 'meta' table.
+generate.metadata.table.pl - Generate metadata.tbl files
+                             from Ensembl 'meta' table.
 
 =head1 SYNOPSIS
 
@@ -280,10 +281,10 @@ Options:
   
   --all_gramene_dbs
   
-  In that case, it'll name each file based off of the species name, or failing that
-  the first common name, or failing that the conf key, or failing that just a timestamp.
-  Will dump all
-  files to the current directory, or the output_dir option:
+  In that case, it'll name each file based off of the species name, or failing
+  that the first common name, or failing that the conf key, or failing that just
+  a timestamp. Will dump all files to the current directory,
+  or the output_dir option:
   
   --all_gramene_dbs --output_dir=/tmp/kbase-metadata
 
@@ -292,7 +293,7 @@ Options:
 Will export a file in exchange format of ensembl meta data. Prints to STDOUT,
 so direct to where you want to go:
 
-./generate.metadata.table.pl --gramene_db ensembl_arabidopsis > arabidopsis.meta.tbl
+./generate.metadata.table.pl --gramene_db ensembl_arabidopsis > arabidopsis.tbl
 
 Or, just dump 'em all:
 
