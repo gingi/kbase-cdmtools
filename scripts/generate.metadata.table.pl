@@ -280,7 +280,9 @@ Options:
   
   --all_gramene_dbs
   
-  In that case, it'll name each file based off of the...FUCK. Will dump all
+  In that case, it'll name each file based off of the species name, or failing that
+  the first common name, or failing that the conf key, or failing that just a timestamp.
+  Will dump all
   files to the current directory, or the output_dir option:
   
   --all_gramene_dbs --output_dir=/tmp/kbase-metadata
