@@ -22,7 +22,7 @@ Readonly my %GFF3FIELDS => (
     extra       => 8
 );
 Readonly my %KBASE_FTYPE => (gene => 'locus',);
-Readonly my @USABLE_TYPES => qw/gene exon mRNA CDS/;
+Readonly my @USABLE_TYPES => qw/gene exon mRNA tRNA rRNA CDS/;
 
 MAIN: {
     my %options;
@@ -137,7 +137,7 @@ sub compress_features {
 
     return unless scalar @{ $feature->children };
 
-    if ($feature->type eq 'mRNA') {
+    if ($feature->type =~ m/RNA$/) {
         merge_cds($feature);
         assign_mrna_locations($feature);
     } else {

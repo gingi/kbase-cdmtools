@@ -61,3 +61,9 @@ Chr1    TAIR10  three_prime_UTR 7157    7314    .       -       .       Parent=A
 Chr1    TAIR10  exon    7157    7450    .       -       .       Parent=AT1G01020.2
 Chr1    TAIR10  three_prime_UTR 6790    7069    .       -       .       Parent=AT1G01020.2
 Chr1    TAIR10  exon    6790    7069    .       -       .       Parent=AT1G01020.2
+Chr1    TAIR10  gene    30237784        30237865        .       +       .       ID=AT1G80430;Note=tRNA;Name=AT1G80430
+Chr1    TAIR10  tRNA    30237784        30237865        .       +       .       ID=AT1G80430.1;Parent=AT1G80430;Name=AT1G80430.1;Index=1
+Chr1    TAIR10  exon    30237784        30237865        .       +       .       Parent=AT1G80430.1
+Chr2    TAIR10  gene    5782    5945    .       +       .       ID=AT2G01020;Note=rRNA;Name=AT2G01020
+Chr2    TAIR10  rRNA    5782    5945    .       +       .       ID=AT2G01020.1;Parent=AT2G01020;Name=AT2G01020.1;Index=1
+Chr2    TAIR10  exon    5782    5945    .       +       .       Parent=AT2G01020.1
