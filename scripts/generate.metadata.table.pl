@@ -9,12 +9,10 @@ use Pod::Usage;
 use Readonly;
 use DBI;
 use List::MoreUtils qw(uniq);
-use Gramene::Config;
 use Bio::DB::Taxonomy;
 use File::Spec;
 
 my $options = {
-    'host'       => 'cabot',
     'port'       => 3306,
     'output_dir' => './',
 };
@@ -24,14 +22,9 @@ GetOptions(
     'help',
     'man',
     
-    # flag to spit out all ensembl dbs in the gramene conf, and the
-    # corresponding output dir, which defaults to ./ if not specified
-    'all_gramene_dbs',
+    'input_file=s',
     'output_dir=s',
     
-    #OR a specific gramene DB
-    'gramene_db=s',
-
     #OR a raw DSN
     'dsn=s',
     #OR a raw database name
@@ -55,48 +48,41 @@ if ( $options->{'help'} || $options->{'man'} ) {
     });
 }; 
 
-#first case, the user requested ALL gramene dbs. Grab and dump 'em all out.
-if ($options->{'all_gramene_dbs'}) {
 
-    my $gramene_config  = Gramene::Config->new->getall;
-    foreach my $key (keys %$gramene_config) {
-        next unless $key =~ /^ensembl_/;
-    
+#first case - we were given a file that contains a list of databases
+if ($options->{'input_file'}) {
+
+    open (my $inputfh, "<", $options->{'input_file'});
+    while (defined (my $dsn = <$inputfh>)) {
+        chomp($dsn);
+        
+        #not actually a dsn? Assume it's a database name and build a DSN.
+        if ($dsn !~ /^dbi:/) {
+            $dsn = sprintf(
+                'dbi:mysql:%s;host=%s;port=%d',
+                    $dsn,
+                    $options->{'host'},
+                    $options->{'port'}
+            );
+        }
+        
         my $dbh = DBI->connect(
-            $gramene_config->{$key}->{'db_dsn'},
-            $gramene_config->{$key}->{'db_user'},
-            $gramene_config->{$key}->{'db_pass'},
-            
+            $dsn,
+            $options->{'user'},
+            $options->{'pass'},
         );
         
-        print STDERR "Dumping database : $key\n";
-        
-        dump_meta_table($dbh, undef, $key);
-
+        print STDERR "Dumping database : $dsn\n";
+        dump_meta_table($dbh, undef, $dsn);
     }
 
     #we're done. Bow out.
     exit;
 }
 
-# Next case, the user requested just one gramene db. Pull out all info from the
-# gramene config file
-elsif ($options->{'gramene_db'}) {
-    my $gramene_config  = Gramene::Config->new->getall;
-    
-    if (my $db_params = $gramene_config->{ $options->{'gramene_db'} } ) {
-        $options->{'dsn'}  = $db_params->{'db_dsn'},
-        $options->{'user'} = $db_params->{'db_user'},
-        $options->{'pass'} = $db_params->{'db_pass'},
-    }
-    else {
-        die "Cannot connect to database: $options->{'gramene_db'} : Imaginary.";
-    }
-}
-
-# otherwise, if a dsn was NOT passed, but we do have a database, then build
+# if a dsn was NOT passed, but we do have a database, then build
 # a dsn from the database, host, and port
-elsif (! defined $options->{'dsn'} && defined $options->{'database'}) {
+if (! defined $options->{'dsn'} && defined $options->{'database'}) {
     $options->{'dsn'} = sprintf(
         'dbi:mysql:%s;host=%s;port=%d',
             $options->{'database'},
@@ -190,7 +176,7 @@ eSQL
             || $output->{'common-name'}->[0]
             || $default_file_name
             || time);   #if we got absolutely no clue, just timestamp it.
-        $filename =~ s/\s+/_/g;
+        $filename =~ s/\W+/_/g;
         
         open (
             $fh,
@@ -257,11 +243,11 @@ Options:
   
   There are several ways to get to a database:
   
-  --gramene_db specifies a key in the gramene.conf file. All connection
-               info will be read from there.
+  You may pass:
   
-  
-  Alternatively, you may pass:
+  --input_file for a list of databases (or dsns) one per line to connect to
+  --output_dir for a directory to output files to. Defaults to $CWD.
+               If not using --input_file, will send info to STDOUT.
   
   --dsn a full mysql dsn driver string
   or
@@ -269,7 +255,7 @@ Options:
             default connection settings
   
   
-  and additional to dsn or database:
+  and additionally, you'll probably need to specify:
   
   --user the user to connect with
   --pass user's password
@@ -277,27 +263,12 @@ Options:
   --port port to connect to (will default to 3306)
   
   
-  Finally, you an just specify all known gramene ensembl databases:
-  
-  --all_gramene_dbs
-  
-  In that case, it'll name each file based off of the species name, or failing
-  that the first common name, or failing that the conf key, or failing that just
-  a timestamp. Will dump all files to the current directory,
-  or the output_dir option:
-  
-  --all_gramene_dbs --output_dir=/tmp/kbase-metadata
-
 =head1 DESCRIPTION
 
 Will export a file in exchange format of ensembl meta data. Prints to STDOUT,
 so direct to where you want to go:
 
-./generate.metadata.table.pl --gramene_db ensembl_arabidopsis > arabidopsis.tbl
-
-Or, just dump 'em all:
-
-./generate.metadata.table.pl --all_gramene_dbs --output_dir=/tmp/kbase-meta
+./generate.metadata.table.pl --database some_arabidopsis_db > arabidopsis.tbl
 
 =head1 SEE ALSO
 
