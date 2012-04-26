@@ -72,6 +72,8 @@ __DATA__
 
 =pod
 
+=head1 DESCRIPTION
+
 Given a features file and a translations file, will remap all transcript ids in
 the translation file to CDS ids provided in the parent file. Each transcript
 must be associated with only one CDS.
