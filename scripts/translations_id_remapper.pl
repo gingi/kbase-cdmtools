@@ -29,14 +29,19 @@ $featuresP->field_separator("\t");
 $featuresP->bind_fields(qw(id type parent name excess)); 
 
 my $mapping = {};
+my $transcript_id_mapping = {};
 
 while (my $feature = $featuresP->fetchrow_hashref) {
+
+    if ($feature->{'type'} eq 'mRNA') {
+        $transcript_id_mapping->{ $feature->{'id'} } = $feature->{'name'};
+    }
 
     if ($feature->{'type'} eq 'CDS') {
         if (defined $mapping->{ $feature->{'parent'} }) {
             die "Multiple CDses provides for $feature->{'parent'}";
         }
-        $mapping->{ $feature->{'parent'} } = $feature->{ $args{'mapfield'} };
+        $mapping->{ $transcript_id_mapping->{ $feature->{'parent'} } } = $feature->{ $args{'mapfield'} };
     }
 }
 
