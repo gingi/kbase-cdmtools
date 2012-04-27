@@ -301,11 +301,15 @@ sub to_string {
     my $self = shift;
     my $parent_id
         = scalar @{ $self->parents } ? $self->parents->[0]->id : '.';
+    my $SUBSET = '.';
     return join("\t",
         $self->id                   || '.',
         $KBASE_FTYPE{ $self->type } || $self->type,
-        $parent_id, $self->name     || '.',
-        $self->location);
+        $self->location,
+        $parent_id,
+        $SUBSET,
+        $self->name     || '.',
+    );
 }
 
 1;
