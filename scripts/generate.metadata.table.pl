@@ -126,7 +126,7 @@ eSQL
     my $data_key_map = {
         'assembly.name'             => {key => 'assembly-version', order => 1},
         'assembly.date'             => {key => 'assembly-date',    order => 2},
-        'species.scientific_name'   => {key => 'species',          order => 3},
+        'species.scientific_name'   => {key => 'name',             order => 3},
         'species.common_name'       => {key => 'common-name',      order => 4},
         'species.alias'             => {key => 'common-name',      order => 5},
         'species.classification'    => {key => 'classification',   order => 6},
@@ -172,7 +172,7 @@ eSQL
     #if we were given no output filehandle, open one now:
     if (! $fh) {
         my $filename = lc (
-               $output->{'species'}->[0]
+               $output->{'name'}->[0]
             || $output->{'common-name'}->[0]
             || $default_file_name
             || time);   #if we got absolutely no clue, just timestamp it.
