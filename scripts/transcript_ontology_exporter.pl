@@ -13,6 +13,7 @@ use File::Spec;
 use Bio::EnsEMBL::Registry;
 
 my %args = (
+    'slimtype' => 'GO-slim',
     'registry' => '/usr/local/gramene/conf/ensembl.registry'
 );
 
@@ -22,7 +23,11 @@ GetOptions(
     'transcript=s',
     'registry=s',
     'output_dir=s',
+    'slimtype=s',
+    'term=s@',
 );
+
+$args{'term'} = { map { $_ => 1} @{ $args{'term'} || [] } };
 
 my @all = Bio::EnsEMBL::Registry->load_all($args{'registry'});
 my @db_adaptors = @{ Bio::EnsEMBL::Registry->get_all_DBAdaptors() };
@@ -91,8 +96,8 @@ foreach my $species (keys %transcript_adaptors) {
                         ),
                         $link->dbname,
                 ),
-                "\n";
-                
+                "\n" unless scalar keys %{$args{'term'}} && ! $args{'term'}{ $link->dbname };
+
             foreach my $slimterm ( @{ $ancestors } ) {
 
                 my $s = join(',', @{$slimterm->subsets});
@@ -106,9 +111,9 @@ foreach my $species (keys %transcript_adaptors) {
                             $slimterm->name,
                             $domain,
                             '', #use term evidence code?
-                            'GO-slim', # hardwired to go-slim instead of $slimterm->ontology?,
+                            $args{'slimtype'}, # hardwired to go-slim instead of $slimterm->ontology?,
                     ),
-                    "\n";
+                    "\n" unless scalar keys %{$args{'term'}} && ! $args{'term'}{ $args{'slimtype'} };
             }
 
         }
@@ -127,5 +132,8 @@ give it options :
  --species (species you're hitting) (optional leave blank to dump all in registry)
  --transcript (the transcript ID to dump) (optional. If omitted will dump all transcripts)
  --output_dir (optional directory to dump to. Required if no species given, otherwise goes to STDOUT)
+ --term (specify multiple times). Terms to include. If omitted, then all terms
+ --slimtype The ontology type to print out for go-slim terms. Optional. Defaults to 'GO-slim'. 
+            Be careful mixing this with --term up above! Must specify the --slimtype term!
 
 =cut
