@@ -64,12 +64,19 @@ foreach my $species (keys %transcript_adaptors) {
     my $delim = "\t";
     my $altdelim = ",";
     
-    print $outputfh join($delim, qw( TranscriptID OntologyID OntologyDescription OntologyEvidenceCode OntologyType )), "\n";  
+    print $outputfh join($delim, qw( TranscriptID OntologyID OntologyDescription OntologyDomain OntologyEvidenceCode OntologyType )), "\n";  
     
     foreach my $transcript (@$transcripts) {
-    
+
         my $links = $transcript->get_all_DBLinks();
         foreach my $link (@$links) {
+        
+            my $ontology_term = $goA->fetch_by_accession($link->display_id);
+            my $ancestors = $ontology_term->ancestors || [];
+            my $domain = @$ancestors
+                ? $ancestors->[-1]->name
+                : '';
+        
             next unless (ref $link) =~ /OntologyXref/;
             print $outputfh 
                 join(
@@ -77,6 +84,7 @@ foreach my $species (keys %transcript_adaptors) {
                         $transcript->display_id,
                         $link->display_id,
                         $link->description,
+                        $domain,
                         join(
                             $altdelim,
                                 @{$link->get_all_linkage_types}
@@ -85,23 +93,26 @@ foreach my $species (keys %transcript_adaptors) {
                 ),
                 "\n";
                 
-            my $ontology_term = $goA->fetch_by_accession($link->display_id);
-            foreach my $slimterm ( @{ $ontology_term->ancestors } ) {
+            foreach my $slimterm ( @{ $ancestors } ) {
+
                 my $s = join(',', @{$slimterm->subsets});
                 next unless $s =~/goslim_generic/;
-                #print Dumper($slimterm); last; use Data::Dumper;
+
                 print $outputfh 
                     join(
                         $delim,
                             $transcript->display_id,
                             $slimterm->accession,
                             $slimterm->name,
+                            $domain,
                             '', #use term evidence code?
-                            $slimterm->ontology,
+                            'GO-slim', # hardwired to go-slim instead of $slimterm->ontology?,
                     ),
                     "\n";
             }
+
         }
+
     }
 }
 
