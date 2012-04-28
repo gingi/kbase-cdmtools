@@ -50,9 +50,11 @@ else {
     }
 }
 
+warn "Dumping all terms" unless keys %{$args{'term'}};
+
 foreach my $species (keys %transcript_adaptors) {
 
-    print STDERR "Dumping $species\n";
+    warn "Dumping $species";
 
     my $transcriptA = $transcript_adaptors{$species};
 
