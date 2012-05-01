@@ -61,7 +61,7 @@ foreach my $species (keys %transcript_adaptors) {
     my $outputfh = \*STDOUT;
 
     if ($args{'output_dir'}) {
-        open $outputfh, ">", File::Spec->catfile($args{'output_dir'}, "$species.exf");
+        open $outputfh, ">", File::Spec->catfile($args{'output_dir'}, "$species.tab");
     }
 
     my $transcripts = $args{'transcript'}
