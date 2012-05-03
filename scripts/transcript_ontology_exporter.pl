@@ -73,10 +73,11 @@ foreach my $species (keys %transcript_adaptors) {
     
     print $outputfh join($delim, qw( TranscriptID OntologyID OntologyDescription OntologyDomain OntologyEvidenceCode OntologyType )), "\n";  
     
-    foreach my $transcript (@$transcripts) {
+    while (my $transcript = shift @$transcripts) {
 
         my $links = $transcript->get_all_DBLinks();
-        foreach my $link (@$links) {
+
+        while (my $link = shift @$links) {
         
             my $ontology_term = $goA->fetch_by_accession($link->display_id);
             my $ancestors = $ontology_term->ancestors || [];
