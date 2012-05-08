@@ -1,0 +1,40 @@
+#!/bin/sh
+
+GRM_USAGE="$0 [options] <command> [<arguments>]
+    
+Available commands:
+    run         Run entire pipeline from scratch
+    dump        Just dump the raw Gramene data sets
+    help        This help message
+ 
+Currently no command-arguments are supported.
+"
+
+function grm_cmd_help {
+    cat <<USAGE
+$GRM_USAGE
+USAGE
+    exit 0
+}
+
+function grm_cmd_dump {
+    ftp_paths="
+    ftp://anonymous@ftp.gramene.org/pub/gramene/CURRENT_RELEASE/data/fasta
+    "
+
+    for path in `echo $ftp_paths`
+    do
+        wget -r -nc --no-directories \
+            --accept "*.pep.all.fa.gz" \
+            --accept "*.dna.toplevel.fa.gz" \
+        $path
+    done
+}
+
+cmd=${1:-help}
+if [ `declare -f grm_cmd_$cmd | wc -l` -gt 1 ]; then
+    shift
+    eval "grm_cmd_$cmd \$@"
+else
+    echo "Unrecognized command. Try '$0 help'."
+fi
