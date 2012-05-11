@@ -7,7 +7,7 @@ use autodie;
 use Getopt::Long;
 use Text::RecordParser;
 
-my %args = ('mapfield' => 'name');
+my %args = ('mapfield' => 'id');
 
 GetOptions(
     \%args,
