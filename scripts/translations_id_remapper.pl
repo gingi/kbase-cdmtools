@@ -1,6 +1,3 @@
-#!/usr/local/bin/perl
-
-use strict;
 use warnings;
 use autodie;
 
@@ -26,7 +23,7 @@ $args{'output'} ||= $args{'translations'};
 
 my $featuresP = Text::RecordParser->new($args{'features'});
 $featuresP->field_separator("\t");
-$featuresP->bind_fields(qw(id type parent name excess)); 
+$featuresP->bind_fields(qw(feature_id type location parent subset gene_name)); 
 
 my $mapping = {};
 my $transcript_id_mapping = {};
