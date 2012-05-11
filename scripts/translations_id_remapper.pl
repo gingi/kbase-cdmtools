@@ -89,6 +89,6 @@ Arguments:
  --translations  /path/to/translations.file
  --output        /path/to/output.file  (optional. Will default to --translations
                                         file and update in place if not set)
---mapfield       field to map transcript ids to. Defaults to "name"
+--mapfield       field to map transcript ids to. Defaults to "id"
 
 =cut
