@@ -4,69 +4,67 @@ use autodie;
 use Getopt::Long;
 use Text::RecordParser;
 
-my %args = ('mapfield' => 'id');
+my %args = (mapfield => 'feature_id');
 
-GetOptions(
-    \%args,
-    'features=s',
-    'translations=s',
-    'output=s',
-    'mapfield=s',
-);
+GetOptions(\%args, 'features=s', 'translations=s', 'output=s', 'mapfield=s',);
 
-die "No features file"                                           unless $args{'features'};
-die "No translation file"                                        unless $args{'translations'};
-warn "No output file specified...updating translations in place" unless $args{'output'};
+die "No features file"    unless $args{features};
+die "No translation file" unless $args{translations};
+# warn "No output file specified...updating translations in place"
+#     unless $args{output};
 
-$args{'output'} ||= $args{'translations'};
+$args{output} ||= $args{translations};
 
-
-my $featuresP = Text::RecordParser->new($args{'features'});
+my $featuresP = Text::RecordParser->new($args{features});
 $featuresP->field_separator("\t");
-$featuresP->bind_fields(qw(feature_id type location parent subset gene_name)); 
+$featuresP->bind_fields(qw(feature_id type location parent subset name));
 
-my $mapping = {};
+my $mapping               = {};
 my $transcript_id_mapping = {};
 
 while (my $feature = $featuresP->fetchrow_hashref) {
-
-    if ($feature->{'type'} eq 'mRNA') {
-        $transcript_id_mapping->{ $feature->{'id'} } = $feature->{'name'};
+    if ($feature->{type} eq 'mRNA') {
+        $transcript_id_mapping->{ $feature->{feature_id} }
+            = $feature->{feature_id};
     }
-
-    if ($feature->{'type'} eq 'CDS') {
-        if (defined $mapping->{ $feature->{'parent'} }) {
-            die "Multiple CDses provides for $feature->{'parent'}";
+    
+    if ($feature->{type} eq 'CDS') {
+        if (defined $mapping->{ $feature->{parent} }) {
+            die "Multiple CDses provides for $feature->{parent}";
         }
-        $mapping->{ $transcript_id_mapping->{ $feature->{'parent'} } } = $feature->{ $args{'mapfield'} };
+        $mapping->{ $transcript_id_mapping->{ $feature->{parent} } }
+            = $feature->{ $args{mapfield} };
     }
+    # Temporary hack by Shiran to fix translation dumps in place.
+    # if ($feature->{type} eq 'CDS') {
+    #     $mapping->{$feature->{name}} = $feature->{feature_id};
+    # }
 }
 
 my @output = ();
 
-open (my $translationsfh, "<", $args{'translations'});
+open(my $translationsfh, "<", $args{translations});
 $/ = "\n>";
 
 while (my $record = <$translationsfh>) {
     chomp($record);
     my ($id, $sequence) = split /\n/, $record, 2;
     $id =~ s/^>//;
-    
+
     if ($mapping->{$id}) {
         $id = $mapping->{$id};
-    }
-    else {
+    } else {
         warn "No mapping provided for $id on line $.";
     }
-    
+
     push @output, ">$id\n$sequence";
 }
 
 close $translationsfh;
 
-warn "Overwriting $args{'output'}" if -e $args{'output'};
+# warn "Overwriting $args{output}" if -e $args{output};
 
-open(my $outputfh, ">", $args{'output'});
+open(my $outputfh, ">", $args{output});
 print $outputfh join("\n", @output);
 close $outputfh;
 
