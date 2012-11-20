@@ -71,7 +71,7 @@ foreach my $species (keys %transcript_adaptors) {
     my $delim = "\t";
     my $altdelim = ",";
     
-    print $outputfh join($delim, qw( TranscriptID OntologyID OntologyDescription OntologyDomain OntologyEvidenceCode OntologyType )), "\n";  
+    print $outputfh join($delim, qw( GeneID TranscriptID OntologyID OntologyDescription OntologyDomain OntologyEvidenceCode OntologyType )), "\n";  
     
     while (my $transcript = shift @$transcripts) {
 
@@ -89,6 +89,7 @@ foreach my $species (keys %transcript_adaptors) {
             print $outputfh 
                 join(
                     $delim,
+                        $transcript->get_Gene->display_id,
                         $transcript->display_id,
                         $link->display_id,
                         $link->description,
@@ -109,6 +110,7 @@ foreach my $species (keys %transcript_adaptors) {
                 print $outputfh 
                     join(
                         $delim,
+                            $transcript->get_Gene->display_id,
                             $transcript->display_id,
                             $slimterm->accession,
                             $slimterm->name,
