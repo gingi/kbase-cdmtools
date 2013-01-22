@@ -31,7 +31,10 @@ GetOptions(
 
 Bio::EnsEMBL::Registry->load_all($args{'registry'});
 
-my $pair_id = $args{'pair_id'};
+#my $pair_id = $args{'pair_id'};
+my $orth_id=1;
+my $para_id=1;
+
 my $seen_genes = {};
 
 my $family_ids = {};
@@ -40,11 +43,12 @@ my $relationships = {};
 
 my $throttle = 0;
 
-my %valid_ids = map {$_ => 1} ('BRADI0007S00200');
+#my %valid_ids = map {$_ => 1} ('BRADI0007S00200');
+my %valid_ids = ();
 
 open my $families_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.2c");          #$args{'species'}.families.2c");
 open my $functions_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.functions");  #$args{'species'}.families.functions");
-
+open my $test_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.test");
 
 foreach my $species (@{$args{'species'}}) {
 
@@ -96,20 +100,21 @@ foreach my $species (@{$args{'species'}}) {
                 next;
             }
 
-            my $local_id = $family_ids->{$type}->{$gene_id_1} || $family_ids->{$type}->{$gene_id_2};
+            my $local_id = $family_ids->{$gene_id_1} || $family_ids->{$gene_id_2};
             if (! defined $local_id) {
-                $local_id = $prefix . $pair_id++;
+		$local_id = $prefix . $orth_id++ if($prefix eq "EPCO_";
+		$local_id = $prefix . $para_id++ if($prefix eq "EPCP_";
                 my $description = join(';', $type, 'EnsemblPlantCompara');
                 print $functions_fh join("\t", $local_id, $description), "\n";
             }
 
-            if (! defined $family_ids->{$type}->{$gene_id_1}) {
-                $family_ids->{$type}->{$gene_id_1} = $local_id;
+            if (! defined $family_ids->{$gene_id_1}) {
+                $family_ids->{$gene_id_1} = $local_id;
                 print $families_fh join("\t", $local_id, $gene_id_1), "\n";
             }
 
-            if (! defined $family_ids->{$type}->{$gene_id_2}) {
-                $family_ids->{$type}->{$gene_id_2} = $local_id;
+            if (! defined $family_ids->{$gene_id_2}) {
+                $family_ids->{$gene_id_2} = $local_id;
                 print $families_fh join("\t", $local_id, $gene_id_2), "\n";
             }
 
@@ -123,6 +128,12 @@ foreach my $species (@{$args{'species'}}) {
 
 close $families_fh;
 close $functions_fh;
+
+open my $test_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.test");
+foreach my $rel (keys %$relationships) {
+    print $test_fh $rel,"\t",join("|",sort keys %{$relationships{$rel}}),"\n";
+}
+close $test_fh;
 
 __DATA__
 foreach my $rel (keys %$relationships) {
