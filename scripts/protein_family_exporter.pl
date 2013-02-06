@@ -48,7 +48,6 @@ my %valid_ids = ();
 
 open my $families_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.2c");          #$args{'species'}.families.2c");
 open my $functions_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.functions");  #$args{'species'}.families.functions");
-open my $test_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.test");
 
 foreach my $species (@{$args{'species'}}) {
 
@@ -129,7 +128,7 @@ foreach my $species (@{$args{'species'}}) {
 close $families_fh;
 close $functions_fh;
 
-open my $test_fh, ">>", File::Spec->catfile($args{'output_dir'}, "plants.families.test");
+open my $test_fh, ">", File::Spec->catfile($args{'output_dir'}, "plants.families.test");
 foreach my $rel (keys %$relationships) {
     print $test_fh $rel,"\t",join("|",sort keys %{$relationships{$rel}}),"\n";
 }
