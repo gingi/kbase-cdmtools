@@ -1,8 +1,8 @@
-select gene_stable_id.stable_id, description
-  from gene left join gene_stable_id using (gene_id)
+select gene.stable_id, description
+  from gene
  where description is not null
  union
-select transcript_stable_id.stable_id, description
-  from transcript left join transcript_stable_id using (transcript_id)
+select transcript.stable_id, description
+  from transcript
  where description is not null
  

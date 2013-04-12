@@ -1,6 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
 FTP_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/CURRENT_RELEASE/data/fasta"
+GFF_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/CURRENT_RELEASE/data/gff"
 STAGING_DIR='./staging'
 GRM_USAGE="$0 [options] <command> [<arguments>]
 
@@ -16,6 +17,7 @@ Available commands:
     dump        Just dump the raw Gramene data sets
     package     Package the files for submission
     help        This help message
+    gff         Dump GFF
  
 Currently no command-arguments are supported.
 "
@@ -40,6 +42,11 @@ function grm_cmd_dump {
             --accept "*.dna.toplevel.fa.gz" \
         $path
     done
+}
+
+function grm_cmd_gff {
+    local genome=$1
+    wget -q "$GFF_BASEDIR/$genome.gff"
 }
 
 function grm_cmd_package {
