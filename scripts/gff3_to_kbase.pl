@@ -85,7 +85,7 @@ sub read_gff3 {
         # Hash by type/location, not ID (which could be undefined)
         my $hashkey = join(':', map { $f->($_) } qw/type map start end/);
         my $id      = $extra{id};
-        my $feature = KbaseExchangeFeature->new();
+        my $feature = KBaseExchangeFeature->new();
         $feature->id   = $id;
         $feature->type = $f->('type');
         $feature->add_location(
@@ -186,14 +186,18 @@ sub assign_feature_id {
     my $feature = shift;
 
     state %Identifiers;
-    if (scalar keys %Identifiers == 0) {
-        %Identifiers = map { $_ => 1 } @USABLE_TYPES;
+    my $parent = $feature->parents->[0]->id;
+    if (!$parent) {
+        die "Exception: Feature does not have a parent", $feature->to_string;
     }
-    $feature->id = sprintf('%s%.5d', lc $feature->type,
-        $Identifiers{ $feature->type }++);
+    if (!exists($Identifiers{$parent})) {
+        $Identifiers{$parent} = 0;
+    }
+    my $child_id = ++$Identifiers{$parent};
+    $feature->id = sprintf('%s_%s%d', $parent, uc $feature->type, $child_id);
 }
 
-package KbaseExchangeFeature;
+package KBaseExchangeFeature;
 
 sub new {
     my $class = shift;
@@ -316,7 +320,7 @@ sub to_string {
 
 =head1 NAME
 
-gff3_to_kbase.pl - Converts GFF3 files of gene annotations to Kbase Exchange format
+gff3_to_kbase.pl - Converts GFF3 files of gene annotations to KBase Exchange format
 
 =head1 SYNOPSIS
 
@@ -346,10 +350,10 @@ B<--help>,B<-h>
 
 =head1 DESCRIPTION
 
-This script converts GFF3 output into the Kbase Exchange format.
+This script converts GFF3 output into the KBase Exchange format.
 
 =head1 AUTHOR
 
-Shiran Pasternak <shiran@cshl.edu>
+Shiran Pasternak <shiranpasternak@gmail.com>
 
 =cut    
