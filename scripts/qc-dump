@@ -1,0 +1,57 @@
+#!/bin/bash
+
+dir="$1"
+if [ -z "$dir" ]; then
+	echo "Usage: $0 directory"
+	exit 0
+fi
+
+if [ ! -d "$dir" ]; then
+	echo "Directory does not exist!"
+	exit 1
+fi
+
+errors=""
+function flag {
+	msg="$@"
+	errors=`cat <<ERR
+$errors$msg
+ERR
+`
+}
+
+function assert_file {
+	f="$1"
+	if [ ! -e "$f" ]; then
+		flag "Required file $f is missing!"
+	fi	
+}
+
+cd $dir
+assert_file proteins.fa
+assert_file contigs.fa
+assert_file metadata.tbl
+assert_file features.tab
+assert_file functions.tab
+if [ -n "$errors" ]; then
+	echo "$errors"
+	exit 0
+fi
+
+proteins=.proteins.$$
+grep '^>' proteins.fa | cut -c2- > $proteins
+if [ -n "$(grep " " $proteins)" ]; then
+	flag "[proteins.fa] Spaces found in IDs"
+fi
+contigs=.contigs.$$
+grep '^>' contigs.fa | cut -c2- > $contigs
+if [ -n "$(grep " " $proteins)" ]; then
+	flag "[contigs.fa] Spaces found in IDs"
+fi
+rm $proteins
+rm $contigs
+
+if [ -n "$errors" ]; then
+	echo "$errors"
+	exit 0
+fi
