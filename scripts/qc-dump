@@ -41,6 +41,7 @@ fi
 proteins=.proteins.$$
 contigs=.contigs.$$
 featctgs=.featctgs.$$
+cds=.cds.$$
 grep '^>' proteins.fa | cut -c2- | sort > $proteins
 if [ -n "$(grep " " $proteins)" ]; then
 	flag "[proteins.fa] Spaces found in IDs"
@@ -52,14 +53,23 @@ fi
 (cut -f3 | tr ',' '\n' | sed 's/_[^_]*$//' | sort -u) < features.tab > $featctgs
 missctgs=$(join -v1 $featctgs $contigs)
 if [ -n "$missctgs" ]; then
-		cat <<EOF > missing-feature-contigs.txt
+	cat <<EOF > missing-feature-contigs.txt
 $missctgs
 EOF
-		flag "[features.tab] Referenced contigs missing from contigs.fa (missing-feature-contigs.txt)"
+	flag "[features.tab] Referenced contigs missing from contigs.fa (missing-feature-contigs.txt)"
+fi
+(awk '$2=="CDS"' | cut -f1 | sort) < features.tab > $cds
+missproteins=$(join -v1 $cds $proteins)
+if [ -n "$missproteins" ]; then
+	cat <<EOF > missing-proteins.txt
+$cds
+EOF
+    flag "[proteins.fa] CDS IDs in features.tab missing from proteins (missing-proteins.txt)"
 fi
 rm $proteins
 rm $contigs
 rm $featctgs
+rm $cds
 
 if [ -n "$errors" ]; then
 	echo "$errors"
