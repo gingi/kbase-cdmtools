@@ -49,12 +49,13 @@ MAIN: {
         chomp($record);
         my ($id, $sequence) = split /\n/, $record, 2;
         $id =~ s/^>//;
+        $id =~ s/\|.*$//;
 
         if ($mapping{$id}) {
             $id = $mapping{$id};
         }
         else {
-            print STDERR "No mapping provided for $id on line $.\n";
+            print STDERR "No mapping provided for '$id' (sequence #$.)\n";
         }
 
         push @output, ">$id\n$sequence";

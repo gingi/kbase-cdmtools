@@ -303,16 +303,19 @@ sub merge_locations {
 
 sub to_string {
     my $self = shift;
-    my $parent_id
-        = scalar @{ $self->parents } ? $self->parents->[0]->id : '.';
+    my $parent_id = '.';
+    if (scalar @{ $self->parents } > 0) {
+        my $parent = $self->parents->[0];
+        $parent_id = $parent->name || $parent->id;
+    }
     my $SUBSET = '.';
     return join("\t",
-        $self->id                   || '.',
+        $self->name || $self->id    || '.',
         $KBASE_FTYPE{ $self->type } || $self->type,
         $self->location,
         $parent_id,
         $SUBSET,
-        $self->name     || '.',
+        $self->name                 || '.',
     );
 }
 
@@ -336,16 +339,16 @@ Options:
 
 =head1 OPTIONS
 
-B<--gff>,B<-g>
+B<--gff>, B<-g>
     The input GFF file. If not specified, the first positional parameter is used. If neither works, the script will try to read GFF output from stdin.
 
-B<--output>,B<-o>
+B<--output>, B<-o>
     The output file. Will overwrite the file if already exists. If not specified, the script prints to stdout.
     
-B<--help>,B<-h>
+B<--help>, B<-h>
     Brief usage instructions.
 
-B<--help>,B<-h>
+B<--man>, B<-m>
     More verbose usage instructions.   
 
 =head1 DESCRIPTION
