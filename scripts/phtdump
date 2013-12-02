@@ -1,9 +1,12 @@
 #!/bin/bash
 
 FTP_URL="ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v9.0/"
+ESEARCH="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&field=Scientific+Name&term="
+EFETCH="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id="
 FTP_USER="anonymous:$USER@kbase.us"
 CURL="curl --user $FTP_USER"
 STAGING_DIR='./staging'
+SCRIPT_DIR=`cd $(dirname $0) && pwd -P`
 PHT_USAGE="$0 [options] <command> [<arguments>]
 
 Dump genomes from Phytozome.org in KBase-formatted exchange file
@@ -16,14 +19,20 @@ Available options:
     
 Available commands:
     run         Run entire pipeline from scratch
+
     genomes     Fetch available genomes
+
     fetch       Just fetch the raw Phytozome files
+
     package     Package the files for submission
+
     help        This help message
-    gff         Dump GFF
+
     clean       Remove all generated files
- 
-Currently no command-arguments are supported.
+
+The 'run', 'fetch', and 'package' commands accept a GENOME argument that lets
+you run the command only on the specified genome.
+
 "
 
 function pht_cmd_help {
@@ -46,11 +55,6 @@ function pht_cmd_fetch {
     fi
 }
 
-function pht_cmd_gff {
-    local genome=$1
-    wget -q "$GFF_BASEDIR/$genome.gff"
-}
-
 function pht_cmd_package {
     local genome=$1
     if [ ! -e "$STAGING_DIR" ]; then
@@ -58,18 +62,13 @@ function pht_cmd_package {
         exit 1
     fi
     if [ -n "$genome" ]; then
-        genomes=$STAGING_DIR/$genome
-        if [ ! -d "$genomes" ]; then
-            echo "Genome $genome not in the staging directory."
-            exit 1
-        fi
+        _package_single_genome $genome
     else
-        genomes=$STAGING_DIR/*
+        _get_genome_list
+        while read genome; do
+            _package_single_genome $genome
+        done < .genomes
     fi
-    
-    for g in $genomes; do
-        echo $g
-    done
 }
 
 function pht_cmd_genomes {
@@ -79,6 +78,7 @@ function pht_cmd_genomes {
 
 function pht_cmd_clean {
     rm .genomes
+    # rm -rf $STAGING_DIR/*
 }
 
 function pht_cmd_run {
@@ -103,9 +103,10 @@ function _fetch_single_genome () {
         echo "Cannot find genome $genome in Phytozome"
         exit 1
     fi
-    echo "Dumping genome $genome into $STAGING_DIR/$genome..."
-    mkdir -p $STAGING_DIR/$genome
-    cd $STAGING_DIR/$genome
+    dumpdir="$STAGING_DIR/$genome/dump"
+    echo "Dumping genome $genome into $dumpdir..."
+    mkdir -p $dumpdir
+    cd $dumpdir
     if [ ! -e ".genome.$genome" ]; then
         $CURL -s "$FTP_URL/$genome/" -l > .genome.$genome
     fi
@@ -120,13 +121,18 @@ function _fetch_single_genome () {
         "annotation info"
     _fetch \
         "$genome/annotation/${prefix}_gene_exons.gff3.gz" \
-        "genes.gff3.gz" \
+        "genes.gff.gz" \
         "gene features"
     _fetch \
         "$genome/annotation/${prefix}_protein.fa.gz" \
         "proteins.fa.gz" \
         "proteins"
+    _fetch \
+        "$genome/gbrowse/GBrowse.conf" \
+        "gbrowse.conf" \
+        "genome information"
     echo "Done fetching genome $genome"
+    cd - > /dev/null
 }
 
 function _fetch () {
@@ -135,6 +141,61 @@ function _fetch () {
     local msg=$3
     echo "Fetching $msg..."
     $CURL -C - "$FTP_URL/$path" -o $dest
+}
+
+function _package_single_genome () {
+    local genome=$1
+    cd $STAGING_DIR/$genome
+    echo "Packaging $genome"
+    echo "Generating metadata"
+    _generate_metadata $genome
+    echo "Generating annotations"
+    gzcat dump/genes.gff.gz | $SCRIPT_DIR/gff3_to_kbase.pl > ./features.tab
+    echo "Generating functions and ontology files"
+    gzcat dump/annotation_info.txt.gz | $SCRIPT_DIR/convert_jgi_info.pl
+    echo "Generating contigs"
+    gzcat dump/assembly.fa.gz > ./contigs.fa
+    echo "Generating proteins"
+    gzcat dump/proteins.fa.gz > ./proteins.fa
+    local version=$(awk '/^assembly-version/{getline;print}' metadata.tbl)
+    mkdir $genome.$version
+    mv contigs.fa \
+        proteins.fa \
+        metadata.tbl \
+        features.tab \
+        functions.tab \
+        ontology.tab $genome.$version/
+    rm -f $genome.$version.tar.gz
+    tar zcvf $genome.$version.tar.gz $genome.$version
+    echo "Done! Package in $genome.$version.tar.gz"
+    cd - > /dev/null
+}
+
+function _generate_metadata () {
+    local genome=$1
+    local desc=`awk "/^path.*$genome/{print l}{l=\\\$0}" ./dump/gbrowse.conf | sed -e 's/description *= *//' -e 's/ - /,/'`
+    local species=$(echo $desc | cut -f1 -d,);
+    local version=$(echo $desc | cut -f2 -d,);
+    local common=`awk "/$species/{print l}{l=\\\$0}" ./dump/gbrowse.conf | sed 's/[^0-9a-zA-Z_ ]//g'`
+    local gid=`curl -s "$ESEARCH$species" | sed -n '/<Id>/s/<[^>]*>//gp'`
+    local lineage=`curl -s "$EFETCH$gid" | sed -n -e '/<Lineage>/s/<[^>]*>//gp' | sed -e 's/; /;/g' -e 's/^ *//'| tr ';' '\n'`
+    
+cat <<EOM > metadata.tbl
+assembly-version
+$version
+//
+name
+$species
+//
+common-name
+$common
+//
+classification
+$lineage
+//
+source
+Phytozome
+EOM
 }
 
 
