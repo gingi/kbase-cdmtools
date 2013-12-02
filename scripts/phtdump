@@ -2,6 +2,7 @@
 
 FTP_URL="ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v9.0/"
 FTP_USER="anonymous:$USER@kbase.us"
+CURL="curl --user $FTP_USER"
 STAGING_DIR='./staging'
 PHT_USAGE="$0 [options] <command> [<arguments>]
 
@@ -9,17 +10,18 @@ Dump genomes from Phytozome.org in KBase-formatted exchange file
 
 Available options:
     -f <path>   FTP path to use for fetching genomes
-         Default: $FTP_BASEDIR
+         Default: $FTP_URL
     -s <dir>    Staging directory to use
          Default: $STAGING_DIR
     
 Available commands:
     run         Run entire pipeline from scratch
     genomes     Fetch available genomes
-    dump        Just dump the raw Gramene data sets
+    fetch       Just fetch the raw Phytozome files
     package     Package the files for submission
     help        This help message
     gff         Dump GFF
+    clean       Remove all generated files
  
 Currently no command-arguments are supported.
 "
@@ -31,19 +33,17 @@ USAGE
     exit 0
 }
 
-function pht_cmd_dump {
+function pht_cmd_fetch {
     local genome=$1
-    ftp_paths="
-    $FTP_DIR
-    "
-
-    for path in `echo $ftp_paths`
-    do
-        wget -r -nc --no-directories \
-            --accept "*.pep.all.fa.gz" \
-            --accept "*.dna.toplevel.fa.gz" \
-        $path
-    done
+    
+    if [ -n "$genome" ]; then
+        _fetch_single_genome $genome
+    else
+        _get_genome_list
+        while read genome; do
+            _fetch_single_genome $genome
+        done < .genomes
+    fi
 }
 
 function pht_cmd_gff {
@@ -82,16 +82,62 @@ function pht_cmd_clean {
 }
 
 function pht_cmd_run {
-    pht_cmd_dump $@
+    pht_cmd_fetch $@
     pht_cmd_package $@
 }
 
 # BEGIN (PRIVATE FUNCTIONS)
+
+# Get and cache list of genomes
 function _get_genome_list {
     if [ ! -e .genomes ]; then
-        curl -s --user "$FTP_USER" "$FTP_URL" -l | grep '^[A-Z]' > .genomes
+        $CURL -s "$FTP_URL" -l | grep '^[A-Z]' > .genomes
     fi
 }
+
+# Fetch a single genome
+function _fetch_single_genome () {
+    local genome=$1
+    _get_genome_list
+    if [ $(grep -c "^$genome$" .genomes) -eq 0 ]; then
+        echo "Cannot find genome $genome in Phytozome"
+        exit 1
+    fi
+    echo "Dumping genome $genome into $STAGING_DIR/$genome..."
+    mkdir -p $STAGING_DIR/$genome
+    cd $STAGING_DIR/$genome
+    if [ ! -e ".genome.$genome" ]; then
+        $CURL -s "$FTP_URL/$genome/" -l > .genome.$genome
+    fi
+    local prefix=$(cat .genome.$genome | grep readme | sed 's/_readme.txt$//')
+    _fetch \
+        "$genome/assembly/$prefix.fa.gz" \
+        "assembly.fa.gz" \
+        "assembly"
+    _fetch \
+        "$genome/annotation/${prefix}_annotation_info.txt.gz" \
+        "annotation_info.txt.gz" \
+        "annotation info"
+    _fetch \
+        "$genome/annotation/${prefix}_gene_exons.gff3.gz" \
+        "genes.gff3.gz" \
+        "gene features"
+    _fetch \
+        "$genome/annotation/${prefix}_protein.fa.gz" \
+        "proteins.fa.gz" \
+        "proteins"
+    echo "Done fetching genome $genome"
+}
+
+function _fetch () {
+    local path=$1
+    local dest=$2
+    local msg=$3
+    echo "Fetching $msg..."
+    $CURL -C - "$FTP_URL/$path" -o $dest
+}
+
+
 # END   (PRIVATE FUNCTIONS)
 
 while getopts "s:f:" opt; do
