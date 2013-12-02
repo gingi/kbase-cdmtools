@@ -1,0 +1,119 @@
+#!/bin/bash
+
+FTP_URL="ftp://ftp.jgi-psf.org/pub/compgen/phytozome/v9.0/"
+FTP_USER="anonymous:$USER@kbase.us"
+STAGING_DIR='./staging'
+PHT_USAGE="$0 [options] <command> [<arguments>]
+
+Dump genomes from Phytozome.org in KBase-formatted exchange file
+
+Available options:
+    -f <path>   FTP path to use for fetching genomes
+         Default: $FTP_BASEDIR
+    -s <dir>    Staging directory to use
+         Default: $STAGING_DIR
+    
+Available commands:
+    run         Run entire pipeline from scratch
+    genomes     Fetch available genomes
+    dump        Just dump the raw Gramene data sets
+    package     Package the files for submission
+    help        This help message
+    gff         Dump GFF
+ 
+Currently no command-arguments are supported.
+"
+
+function pht_cmd_help {
+    cat <<USAGE
+$PHT_USAGE
+USAGE
+    exit 0
+}
+
+function pht_cmd_dump {
+    local genome=$1
+    ftp_paths="
+    $FTP_DIR
+    "
+
+    for path in `echo $ftp_paths`
+    do
+        wget -r -nc --no-directories \
+            --accept "*.pep.all.fa.gz" \
+            --accept "*.dna.toplevel.fa.gz" \
+        $path
+    done
+}
+
+function pht_cmd_gff {
+    local genome=$1
+    wget -q "$GFF_BASEDIR/$genome.gff"
+}
+
+function pht_cmd_package {
+    local genome=$1
+    if [ ! -e "$STAGING_DIR" ]; then
+        echo "Staging directory $STAGING_DIR does not exist!"
+        exit 1
+    fi
+    if [ -n "$genome" ]; then
+        genomes=$STAGING_DIR/$genome
+        if [ ! -d "$genomes" ]; then
+            echo "Genome $genome not in the staging directory."
+            exit 1
+        fi
+    else
+        genomes=$STAGING_DIR/*
+    fi
+    
+    for g in $genomes; do
+        echo $g
+    done
+}
+
+function pht_cmd_genomes {
+    _get_genome_list
+    cat .genomes
+}
+
+function pht_cmd_clean {
+    rm .genomes
+}
+
+function pht_cmd_run {
+    pht_cmd_dump $@
+    pht_cmd_package $@
+}
+
+# BEGIN (PRIVATE FUNCTIONS)
+function _get_genome_list {
+    if [ ! -e .genomes ]; then
+        curl -s --user "$FTP_USER" "$FTP_URL" -l | grep '^[A-Z]' > .genomes
+    fi
+}
+# END   (PRIVATE FUNCTIONS)
+
+while getopts "s:f:" opt; do
+    case $opt in
+        s)
+            STAGING_DIR="$OPTARG"
+            ;;
+        f)
+            FTP_BASEDIR="$OPTARG"
+            ;;
+        *)
+            echo "Unsupported option -$opt"
+            iris_cmd_help
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+cmd=${1:-help}
+if [ `declare -f pht_cmd_$cmd | wc -l` -gt 1 ]; then
+    shift
+    eval "pht_cmd_$cmd \$@"
+else
+    echo "Unrecognized command '$cmd'. Try '$0 help'."
+fi
