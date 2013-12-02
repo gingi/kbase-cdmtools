@@ -87,6 +87,9 @@ function pht_cmd_run {
 }
 
 # BEGIN (PRIVATE FUNCTIONS)
+function gzcat {
+    gunzip -c "$@"
+}
 
 # Get and cache list of genomes
 function _get_genome_list {
@@ -158,7 +161,7 @@ function _package_single_genome () {
     echo "Generating proteins"
     gzcat dump/proteins.fa.gz > ./proteins.fa
     local version=$(awk '/^assembly-version/{getline;print}' metadata.tbl)
-    mkdir $genome.$version
+    mkdir -p $genome.$version
     mv contigs.fa \
         proteins.fa \
         metadata.tbl \
