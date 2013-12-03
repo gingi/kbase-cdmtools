@@ -78,7 +78,7 @@ function pht_cmd_genomes {
 
 function pht_cmd_clean {
     rm .genomes
-    # rm -rf $STAGING_DIR/*
+    rm -rf $STAGING_DIR/*
 }
 
 function pht_cmd_run {
@@ -161,27 +161,33 @@ function _package_single_genome () {
     echo "Generating proteins"
     gzcat dump/proteins.fa.gz > ./proteins.fa
     local version=$(awk '/^assembly-version/{getline;print}' metadata.tbl)
-    mkdir -p $genome.$version
+    local target=$(echo "$genome.$version" | tr ' ' '-');
+    mkdir -p $target
     mv contigs.fa \
         proteins.fa \
         metadata.tbl \
         features.tab \
         functions.tab \
-        ontology.tab $genome.$version/
-    rm -f $genome.$version.tar.gz
-    tar zcvf $genome.$version.tar.gz $genome.$version
-    echo "Done! Package in $genome.$version.tar.gz"
+        ontology.tab $target/
+    rm -f $target.tar.gz
+    tar zcvf $target.tar.gz $target
+    echo "Done! Package in $target.tar.gz"
     cd - > /dev/null
 }
 
 function _generate_metadata () {
     local genome=$1
-    local desc=`awk "/^path.*$genome/{print l}{l=\\\$0}" ./dump/gbrowse.conf | sed -e 's/description *= *//' -e 's/ - /,/'`
+    genome=$(echo $genome | sed 's/[\-_]//g')
+    local desc=`awk "/^path.*Phytozome\/$genome\.conf$/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed -e 's/description *= *//' -e 's/ - /,/'`
     local species=$(echo $desc | cut -f1 -d,);
-    local version=$(echo $desc | cut -f2 -d,);
-    local common=`awk "/$species/{print l}{l=\\\$0}" ./dump/gbrowse.conf | sed 's/[^0-9a-zA-Z_ ]//g'`
+    local version=$(echo $desc | cut -f2 -d, | tr ' ' '-' | sed 's/JGI\-v/JGI/');
+    local common=`awk "/$species/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed 's/[^0-9a-zA-Z_ ]//g'`
     local gid=`curl -s "$ESEARCH$species" | sed -n '/<Id>/s/<[^>]*>//gp'`
     local lineage=`curl -s "$EFETCH$gid" | sed -n -e '/<Lineage>/s/<[^>]*>//gp' | sed -e 's/; /;/g' -e 's/^ *//'| tr ';' '\n'`
+    if [ -z "$species" ] || [ -z "$version" ]; then
+        echo "Unable to get metadata for $genome (species:$species version:$version)"
+        exit 1
+    fi
     
 cat <<EOM > metadata.tbl
 assembly-version
