@@ -180,7 +180,8 @@ function _generate_metadata () {
     local gtoken=$(echo $genome | sed 's/[-_]//g')
     local desc=`awk "/^path.*Phytozome\/$gtoken\.conf$/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed -e 's/^description *\= *//' -e 's/ - /,/'`
     local species=$(echo $desc | cut -f1 -d,);
-    local version=$(echo $desc | cut -f2 -d, | tr ' ' '-' | sed 's/JGI\-v/JGI/');
+    local version=$(echo $desc | cut -f2 -d, | perl -pe 's|[ /]|-|g;s/-(v(ersion)?)?(?=\d)//');
+    echo "VERSION $version"
     local common=`awk "/$species/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed 's/[^0-9a-zA-Z_ ]//g'`
     local gid=`curl -s "$ESEARCH$species" | sed -n '/<Id>/s/<[^>]*>//gp'`
     local lineage=`curl -s "$EFETCH$gid" | sed -n -e '/<Lineage>/s/<[^>]*>//gp' | sed -e 's/; /;/g' -e 's/^ *//'| tr ';' '\n'`
@@ -205,7 +206,6 @@ source
 Phytozome
 EOM
 }
-
 
 # END   (PRIVATE FUNCTIONS)
 
