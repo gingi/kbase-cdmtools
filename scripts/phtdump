@@ -177,8 +177,8 @@ function _package_single_genome () {
 
 function _generate_metadata () {
     local genome=$1
-    genome=$(echo $genome | sed 's/[\-_]//g')
-    local desc=`awk "/^path.*Phytozome\/$genome\.conf$/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed -e 's/description *= *//' -e 's/ - /,/'`
+    local gtoken=$(echo $genome | sed 's/[-_]//g')
+    local desc=`awk "/^path.*Phytozome\/$gtoken\.conf$/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed -e 's/^description *\= *//' -e 's/ - /,/'`
     local species=$(echo $desc | cut -f1 -d,);
     local version=$(echo $desc | cut -f2 -d, | tr ' ' '-' | sed 's/JGI\-v/JGI/');
     local common=`awk "/$species/{print l;exit 0}{l=\\\$0}" ./dump/gbrowse.conf | sed 's/[^0-9a-zA-Z_ ]//g'`
@@ -188,8 +188,7 @@ function _generate_metadata () {
         echo "Unable to get metadata for $genome (species:$species version:$version)"
         exit 1
     fi
-    
-cat <<EOM > metadata.tbl
+    cat <<EOM > metadata.tbl
 assembly-version
 $version
 //
