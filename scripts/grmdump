@@ -38,8 +38,8 @@ function grm_cmd_dump {
     for path in `echo $ftp_paths`
     do
         wget -r -nc --no-directories \
-            --accept "*.pep.all.fa.gz" \
-            --accept "*.dna.toplevel.fa.gz" \
+            --accept "pep/*.pep.all.fa.gz" \
+            --accept "dna/*.dna.toplevel.fa.gz" \
         $path
     done
 }
