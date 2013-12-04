@@ -5,7 +5,7 @@ ESEARCH="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&f
 EFETCH="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id="
 FTP_USER="anonymous:$USER@kbase.us"
 CURL="curl --user $FTP_USER"
-STAGING_DIR='./staging/9.0'
+STAGING_DIR='./staging/phytozome/9.0'
 SCRIPT_DIR=`cd $(dirname $0) && pwd -P`
 PHT_USAGE="$0 [options] <command> [<arguments>]
 

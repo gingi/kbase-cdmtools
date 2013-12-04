@@ -1,8 +1,8 @@
 #!/bin/bash
 
-FTP_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/CURRENT_RELEASE/data/fasta"
-GFF_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/CURRENT_RELEASE/data/gff"
-STAGING_DIR='./staging'
+FTP_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/release39/data/fasta"
+GFF_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/release39/data/gff"
+STAGING_DIR='./staging/gramene/release39'
 GRM_USAGE="$0 [options] <command> [<arguments>]
 
 Available options:
