@@ -173,7 +173,6 @@ function _generate_provenance () {
     echo "Generating provenance metadata"
     local version=$(_genome_version)
     local name=$(_genome_species)
-    local download_date=$(stat -f "%Sm" dump/)
     local common=$(_genome_common)
     # Needs to conform to ./data_bootstrap/blob/master/docs/data_resource.schema.json
     cat <<EOJSON > ./provenance.json
@@ -183,7 +182,6 @@ function _generate_provenance () {
     "version" : {
         "external" : "$version"
     },
-    "download_date": "$download_date",
     "origin_url": "http://www.phytozome.net/$common.php",
     "format": "FASTA",
     "type": "NUCLEOTIDE",
@@ -221,7 +219,7 @@ function _package_single_genome () {
     _generate_contigs                $genome
     _generete_proteins               $genome
     local version=$(_genome_version)
-    local targetd=$(echo "$genome.$version" | tr ' ' '-');
+    local target=$(echo "$genome.$version" | tr ' ' '-');
     mkdir -p $target
     mv contigs.fa \
         proteins.fa \
