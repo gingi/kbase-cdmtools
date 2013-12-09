@@ -1,107 +1,145 @@
-#!/bin/bash
+#!/usr/bin/make -f
 
-FTP_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/release39/data/fasta"
-GFF_BASEDIR="ftp://anonymous@ftp.gramene.org/pub/gramene/release39/data/gff"
-STAGING_DIR='./staging/gramene/release39'
-GRM_USAGE="$0 [options] <command> [<arguments>]
+PACKAGE      = cdmtools
+release     ?= 39
+FTP_BASEDIR ?= "ftp://anonymous@ftp.gramene.org/pub/gramene/release$(release)/data"
+FASTADIR    ?= "$(FTP_BASEDIR)/fasta"
+GFFDIR      ?= "$(FTP_BASEDIR)/gff"
+STAGING_DIR ?= "./staging/gramene/$(release)"
+ESEARCH      = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&field=Scientific+Name&term="
+EFETCH       = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id="
+CURL         = "curl"
+
+genome ?= hi
+
+define USAGE
+grmdump [options] <command> [<arguments>]
 
 Available options:
-    -f <path>   FTP path to use for fetching genomes
-         Default: $FTP_BASEDIR
-    -s <dir>    Staging directory to use
-         Default: $STAGING_DIR
-    
+  FTP_BASEDIR=<path>: FTP path to use for fetching genomes
+    Default: $(FTP_BASEDIR)
+  STAGING_DIR=<path>: Staging directory to use
+    Default: $(STAGING_DIR)
+	  
 Available commands:
-    run         Run entire pipeline from scratch
-    genomes     Fetch available genomes
-    dump        Just dump the raw Gramene data sets
-    package     Package the files for submission
-    help        This help message
-    gff         Dump GFF
+  run		  Run entire pipeline from scratch
+  genomes	  Fetch available genomes
+  dump		  Just dump the raw Gramene data sets
+  package	  Package the files for submission
+  help		  This help message
+  gff		  Dump GFF
  
 Currently no command-arguments are supported.
-"
+endef
+export USAGE
 
-function grm_cmd_help {
-    cat <<USAGE
-$GRM_USAGE
-USAGE
-    exit 0
-}
+help:
+	@ echo "$$USAGE"
 
-function grm_cmd_dump {
-    local genome=$1
-    ftp_paths="
-    $FTP_BASEDIR
-    "
+init:
+	@ echo "Initializing"
+	@ mkdir -p $(STAGING_DIR)
 
-    for path in `echo $ftp_paths`
-    do
-        wget -r -nc --no-directories \
-            --accept "pep/*.pep.all.fa.gz" \
-            --accept "dna/*.dna.toplevel.fa.gz" \
-        $path
-    done
-}
+"$(STAGING_DIR)/$(genome)":
+	@ mkdir -p "$(STAGING_DIR)/$(genome)"
 
-function grm_cmd_gff {
-    local genome=$1
-    wget -q "$GFF_BASEDIR/$genome.gff"
-}
+fetch-$(genome): "$(STAGING_DIR)/$(genome)"
+	@ echo "Now fetching"
 
-function grm_cmd_package {
-    local genome=$1
-    if [ ! -e "$STAGING_DIR" ]; then
-        echo "Staging directory $STAGING_DIR does not exist!"
-        exit 1
-    fi
-    if [ -n "$genome" ]; then
-        genomes=$STAGING_DIR/$genome
-        if [ ! -d "$genomes" ]; then
-            echo "Genome $genome not in the staging directory."
-            exit 1
-        fi
-    else
-        genomes=$STAGING_DIR/*
-    fi
-    
-    for g in $genomes; do
-        echo $g
-    done
-}
+package-$(genome): "$(STAGING_DIR)/$(genome)"
+	@ echo "Now packaging"
 
-function grm_cmd_genomes {
-    rm -f .listing
-    wget -q --no-remove-listing --level 1 -O - "$FTP_BASEDIR/" > /dev/null
-    cat .listing | cut -c57- | grep -v '^\.*$' > .genomes
-    cat .genomes
-}
+run: init fetch-$(genome) package-$(genome)
+	@ echo "Running genome $(genome)"
 
-function grm_cmd_run {
-    grm_cmd_dump $@
-    grm_cmd_package $@
-}
+.genomes.gramene:
+	@ $(CURL) -s -l $(FASTADIR)/ > .genomes.gramene
 
-while getopts "s:f:" opt; do
-    case $opt in
-        s)
-            STAGING_DIR="$OPTARG"
-            ;;
-        f)
-            FTP_BASEDIR="$OPTARG"
-            ;;
-        *)
-            echo "Unsupported option -$opt"
-            iris_cmd_help
-            ;;
-    esac
-done
-shift $((OPTIND-1))
+genomes: .genomes.gramene
+	@ echo "Available genomes:"
+	@ cat .genomes.gramene
+	
+clean:
+	@ rm .genomes.gramene
+	
 
-cmd=${1:-help}
-if [ `declare -f grm_cmd_$cmd | wc -l` -gt 1 ]; then
-    shift
-    eval "grm_cmd_$cmd \$@"
-else
-    echo "Unrecognized command '$cmd'. Try '$0 help'."
-fi
+# function grm_cmd_dump {
+#	  local genome=$1
+#	  ftp_paths="
+#	  $FTP_BASEDIR
+#	  "
+# 
+#	  for path in `echo $ftp_paths`
+#	  do
+#		  wget -r -nc --no-directories \
+#			  --accept "pep/*.pep.all.fa.gz" \
+#			  --accept "dna/*.dna.toplevel.fa.gz" \
+#		  $path
+#	  done
+# }
+# 
+# function grm_cmd_gff {
+#	  local genome=$1
+#	  wget -q "$GFF_BASEDIR/$genome.gff"
+# }
+# 
+# function grm_cmd_package {
+#	  local genome=$1
+#	  if [ ! -e "$STAGING_DIR" ]; then
+#		  echo "Staging directory $STAGING_DIR does not exist!"
+#		  exit 1
+#	  fi
+#	  if [ -n "$genome" ]; then
+#		  genomes=$STAGING_DIR/$genome
+#		  if [ ! -d "$genomes" ]; then
+#			  echo "Genome $genome not in the staging directory."
+#			  exit 1
+#		  fi
+#	  else
+#		  genomes=$STAGING_DIR/*
+#	  fi
+#	  
+#	  for g in $genomes; do
+#		  echo $g
+#	  done
+# }
+# 
+# function grm_cmd_genomes {
+#	  rm -f .listing
+#	  wget -q --no-remove-listing --level 1 -O - "$FTP_BASEDIR/" > /dev/null
+#	  cat .listing | cut -c57- | grep -v '^\.*$' > .genomes
+#	  cat .genomes
+# }
+# 
+# function grm_cmd_run {
+#	  grm_cmd_dump $@
+#	  grm_cmd_package $@
+# }
+# 
+# while getopts "s:f:" opt; do
+#	  case $opt in
+#		  s)
+#			  STAGING_DIR="$OPTARG"
+#			  ;;
+#		  f)
+#			  FTP_BASEDIR="$OPTARG"
+#			  ;;
+#		  *)
+#			  echo "Unsupported option -$opt"
+#			  iris_cmd_help
+#			  ;;
+#	  esac
+# done
+# shift $((OPTIND-1))
+# 
+# cmd=${1:-help}
+# if [ `declare -f grm_cmd_$cmd | wc -l` -gt 1 ]; then
+#	  shift
+#	  eval "grm_cmd_$cmd \$@"
+# else
+#	  echo "Unrecognized command '$cmd'. Try '$0 help'."
+# fi
+
+.PHONY: help
+
+all: $(genome)
