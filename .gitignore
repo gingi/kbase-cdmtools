@@ -1,0 +1,4 @@
+staging
+node_modules
+.genomes
+.genome.*
