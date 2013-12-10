@@ -10,7 +10,9 @@ ESEARCH      = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=tax
 EFETCH       = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id="
 CURL         = "curl"
 
-genome ?= hi
+genome ?=
+stage_dir = $(STAGING_DIR)/$(genome)
+dump_dir  = $(stage_dir)/dump
 
 define USAGE
 grmdump [options] <command> [<arguments>]
@@ -40,13 +42,48 @@ init:
 	@ echo "Initializing"
 	@ mkdir -p $(STAGING_DIR)
 
-"$(STAGING_DIR)/$(genome)":
-	@ mkdir -p "$(STAGING_DIR)/$(genome)"
+$(stage_dir):
+	@ mkdir -p $(stage_dir)
 
-fetch-$(genome): "$(STAGING_DIR)/$(genome)"
-	@ echo "Now fetching"
+$(dump_dir):
+	@ mkdir -p $(dump_dir)
 
-package-$(genome): "$(STAGING_DIR)/$(genome)"
+$(dump_dir)/assembly.fa.gz:
+	@ if [ ! -e "$(dump_dir)/.done.assembly" ]; then \
+		echo "Fetching genome contigs"; \
+		fname=`$(CURL) -s -l $(FASTADIR)/$(genome)/dna/ | \
+			grep '.dna.toplevel.fa.gz'`; \
+		$(CURL) -C - $(FASTADIR)/$(genome)/dna/$$fname -o $(dump_dir)/assembly.fa.gz; \
+		touch $(dump_dir)/.done.assembly; \
+	fi
+
+$(dump_dir)/annotation_info.txt.gz:
+	@ echo "Fetching annotation info"
+
+$(dump_dir)/proteins.fa.gz:
+	@ if [ ! -e "$(dump_dir)/.done.proteins" ]; then \
+		echo "Fetching proteins"; \
+		fname=`$(CURL) -s -l $(FASTADIR)/$(genome)/pep/ | \
+		grep '.pep.all.fa.gz'`; \
+		$(CURL) -C - $(FASTADIR)/$(genome)/pep/$$fname -o $(dump_dir)/proteins.fa.gz; \
+		touch $(dump_dir)/.done.proteins; \
+	fi
+
+$(dump_dir)/genes.gff.gz:
+	@ if [ ! -e "$(dump_dir)/.done.gff" ]; then \
+		echo "Fetching GFF data"; \
+		$(CURL) -C - $(GFFDIR)/$(genome).gff.gz -o $(dump_dir)/genes.gff.gz; \
+		touch $(dump_dir)/.done.gff; \
+	fi
+
+fetch-$(genome): $(stage_dir) $(dump_dir) \
+	$(dump_dir)/assembly.fa.gz \
+	$(dump_dir)/proteins.fa.gz \
+	$(dump_dir)/annotation_info.txt.gz \
+	$(dump_dir)/genes.gff.gz
+	
+
+package-$(genome): $(stage_dir)
 	@ echo "Now packaging"
 
 run: init fetch-$(genome) package-$(genome)
@@ -60,7 +97,8 @@ genomes: .genomes.gramene
 	@ cat .genomes.gramene
 	
 clean:
-	@ rm .genomes.gramene
+	@ rm -f .genomes.gramene
+	@ find $(STAGING_DIR) -name ".done*" -exec rm {} \;
 	
 
 # function grm_cmd_dump {
