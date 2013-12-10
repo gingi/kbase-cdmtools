@@ -17,7 +17,7 @@ dbhost ?= mysql.gramene.org
 dbuser ?= gramene_web
 dbpass ?= password
 
-genome ?= hi
+genome ?= dummy
 stage_dir   = $(STAGING_DIR)/$(genome)
 dump_dir    = $(stage_dir)/dump
 package_dir = $(stage_dir)/package
@@ -43,13 +43,11 @@ endef
 export USAGE
 
 fetch = \
-	$(info Fetching $(3)...) \
-	$(eval fname := $(shell $(CURL) -s -l $(1)/ | grep '$(2)')) \
-	ifeq ($(fname),) \
-		$(error Cannot find remote $(3) for $(genome)) \
-	else \
-		$(CURL) -C - $(1)/$(fname) -o $@ \
-	endif
+	$$(info Fetching $(3)...) \
+	$$(eval fname := $$(shell $(CURL) -s -l $(1)/ | grep '$(2)')) \
+	$$(if $$(filter $$(fname),),\
+		$$(error Cannot find remote $(3) for $$(genome)),\
+		$$(shell $(CURL) -C - $(1)/$$(fname) -o $@))
 
 help:
 	@ echo "$$USAGE"
@@ -69,16 +67,16 @@ $(package_dir):
 	@ mkdir -p $(package_dir)
 
 $(dump_dir)/assembly.fa.gz:
-	@ $(info $(call fetch,$(FASTADIR)/$(genome)/dna,.dna.toplevel.fa.gz,contigs))
+	@ $(eval $(call fetch,$(FASTADIR)/$(genome)/dna,.dna.toplevel.fa.gz,contigs))
 
 $(dump_dir)/annotation_info.txt.gz:
 	@ echo "Fetching annotation info"
 
 $(dump_dir)/proteins.fa.gz:
-	@ $(info $(call fetch,$(FASTADIR)/$(genome)/pep,.pep.all.fa.gz,proteins))
+	@ $(eval $(call fetch,$(FASTADIR)/$(genome)/pep,.pep.all.fa.gz,proteins))
 
 $(dump_dir)/genes.gff.gz:
-	@ $(info $(call fetch,$(GFFDIR),$(genome).gff.gz,annotations))
+	@ $(eval $(call fetch,$(GFFDIR),$(genome).gff.gz,annotations))
 	
 fetch-$(genome): $(stage_dir) $(dump_dir) \
 	$(dump_dir)/assembly.fa.gz \
