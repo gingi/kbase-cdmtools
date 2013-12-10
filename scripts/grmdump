@@ -7,7 +7,7 @@ release     ?= 39
 SCRIPTDIR    = $(dir $(firstword $(MAKEFILE_LIST)))
 FTP_BASEDIR ?= ftp://anonymous@ftp.gramene.org/pub/gramene/release$(release)/data
 FASTADIR    ?= $(FTP_BASEDIR)/fasta
-GFFDIR      ?= $(FTP_BASEDIR)/gff/suspicious
+GFFDIR      ?= $(FTP_BASEDIR)/gff
 STAGING_DIR ?= ./staging/gramene/$(release)
 ESEARCH      = http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&field=Scientific+Name&term=
 EFETCH       = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id="
