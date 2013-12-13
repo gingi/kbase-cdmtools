@@ -150,15 +150,18 @@ sub compress_features {
 sub merge_cds {
     my ($feature)    = @_;
     my %new_children = ();
-    my $new_id       = ();
+    my $new_id       = undef;
+	my $new_name     = undef;
     for my $cds (@{ $feature->children_by_type('CDS') }) {
-        if (!defined $cds->id || $cds->id eq '') {
-            if (defined $new_id) {
-                $cds->id = $new_id;
-            } else {
-                assign_feature_id($cds);
-                $new_id = $cds->id;
-            }
+        if (defined $new_id) {
+            $cds->id = $new_id;
+			$cds->name = $new_name;
+        } else {
+			# Assign name/ID once for all merged CDSs based on parent transcript
+            assign_feature_id($cds);
+            $new_id = $cds->id;
+			$new_name = $cds->name =
+				join(".", ($feature->name || $feature->id), "CDS");
         }
         my $new_child = $new_children{ $cds->id };
         if (defined $new_child) {

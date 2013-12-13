@@ -5,22 +5,26 @@ PACKAGE      = cdmtools
 release     ?= 39
 
 SCRIPTDIR    = $(dir $(firstword $(MAKEFILE_LIST)))
+SQLDIR       = $(SCRIPTDIR)/../sql
 FTP_BASEDIR ?= ftp://anonymous@ftp.gramene.org/pub/gramene/release$(release)/data
 FASTADIR    ?= $(FTP_BASEDIR)/fasta
 GFFDIR      ?= $(FTP_BASEDIR)/gff
 STAGING_DIR ?= ./staging/gramene/$(release)
 ESEARCH      = http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&field=Scientific+Name&term=
-EFETCH       = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id="
-CURL         = "curl"
+EFETCH       = http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=
+CURL         = curl
 
 dbhost ?= mysql.gramene.org
 dbuser ?= gramene_web
 dbpass ?= password
 
 genome ?= dummy
+
 stage_dir   = $(STAGING_DIR)/$(genome)
 dump_dir    = $(stage_dir)/dump
 package_dir = $(stage_dir)/package
+
+MYSQL = MYSQL_PWD=$(dbpass) mysql -h$(dbhost) -u$(dbuser)
 
 define USAGE
 grmdump [options] <command> [<arguments>]
@@ -84,13 +88,41 @@ fetch-$(genome): $(stage_dir) $(dump_dir) \
 	$(dump_dir)/annotation_info.txt.gz \
 	$(dump_dir)/genes.gff.gz	
 
+$(genome)-dbname: $(dbname)
+	@ echo "Getting database name"
+	@ $(eval dbname := $(shell $(MYSQL) -e "show databases" \
+		| grep "^$(genome)_core_$(release)"))
+
 $(package_dir)/features.tab: $(dump_dir)/genes.gff.gz
 	@ echo "Packaging annotations"
 	@ gunzip -c $(dump_dir)/genes.gff.gz | $(SCRIPTDIR)/gff3_to_kbase.pl > \
 		$(package_dir)/features.tab
 
+$(package_dir)/functions.tab: $(genome)-dbname
+	@ echo "Packaging functions"
+	@ $(MYSQL) -N $(dbname) < $(SQLDIR)/ensembl_feature_functions.sql \
+		> $(package_dir)/functions.tab
+
+$(package_dir)/ontology.tab: $(genome)-dbname
+	@ echo "Packaging ontologies"
+
+$(package_dir)/metadata.tbl: $(genome)-dbname
+	@ echo "Packaging metadata"	
+
+$(package_dir)/contigs.fa: $(dump_dir)/assembly.fa.gz
+	@ echo "Packaging contigs"	
+
+$(package_dir)/proteins.fa: $(dump_dir)/proteins.fa.gz
+	@ echo "Packaging proteins"	
+
 package-$(genome): $(stage_dir) $(package_dir) \
-	$(package_dir)/features.tab
+	$(package_dir)/features.tab \
+	$(package_dir)/functions.tab \
+	$(package_dir)/ontology.tab \
+	$(package_dir)/contigs.fa \
+	$(package_dir)/proteins.fa \
+	$(package_dir)/metadata.tbl \
+	$(package_dir)/provenance.json
 
 run: init fetch-$(genome) package-$(genome)
 
