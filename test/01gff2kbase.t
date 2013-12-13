@@ -1,5 +1,5 @@
 use strict;
-use Test::Simple tests => 2;
+use Test::Simple tests => 3;
 use Text::Diff;
 use File::Temp;
 
@@ -7,7 +7,7 @@ my $SCRIPTDIR  = './scripts';
 my $FIXTUREDIR = './fixtures';
 
 
-for my $fixnum (1..2) {
+for my $fixnum (1..3) {
     my $expfile = "$FIXTUREDIR/features$fixnum.tsv";
     my $gfffile = "$FIXTUREDIR/features$fixnum.gff";
     my $fh = File::Temp->new();

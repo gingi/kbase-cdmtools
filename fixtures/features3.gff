@@ -1,0 +1,20 @@
+##gff-version 3
+Chr01	phytozome9_0	gene	1660	2502	.	-	.	ID=Potri.001G000100;Name=Potri.001G000100
+Chr01	phytozome9_0	mRNA	1660	2502	.	-	.	ID=PAC:27043735;Name=Potri.001G000100.1;pacid=27043735;longest=1;Parent=Potri.001G000100
+Chr01	phytozome9_0	exon	1660	2502	.	-	.	ID=PAC:27043735.exon.1;Parent=PAC:27043735;pacid=27043735
+Chr01	phytozome9_0	CDS	1660	2502	.	-	0	ID=PAC:27043735.CDS.1;Parent=PAC:27043735;pacid=27043735
+Chr01	phytozome9_0	gene	2906	6646	.	-	.	ID=Potri.001G000200;Name=Potri.001G000200
+Chr01	phytozome9_0	mRNA	2906	6646	.	-	.	ID=PAC:27045395;Name=Potri.001G000200.1;pacid=27045395;longest=1;Parent=Potri.001G000200
+Chr01	phytozome9_0	exon	6501	6646	.	-	.	ID=PAC:27045395.exon.1;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	CDS	6501	6644	.	-	0	ID=PAC:27045395.CDS.1;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	five_prime_UTR	6645	6646	.	-	.	ID=PAC:27045395.five_prime_UTR.1;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	exon	3506	3928	.	-	.	ID=PAC:27045395.exon.2;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	CDS	3506	3928	.	-	0	ID=PAC:27045395.CDS.2;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	exon	2906	3475	.	-	.	ID=PAC:27045395.exon.3;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	CDS	2906	3475	.	-	0	ID=PAC:27045395.CDS.3;Parent=PAC:27045395;pacid=27045395
+Chr01	phytozome9_0	gene	8391	8860	.	+	.	ID=Potri.001G000300;Name=Potri.001G000300
+Chr01	phytozome9_0	mRNA	8391	8860	.	+	.	ID=PAC:27045442;Name=Potri.001G000300.1;pacid=27045442;longest=1;Parent=Potri.001G000300
+Chr01	phytozome9_0	exon	8391	8860	.	+	.	ID=PAC:27045442.exon.1;Parent=PAC:27045442;pacid=27045442
+Chr01	phytozome9_0	five_prime_UTR	8391	8408	.	+	.	ID=PAC:27045442.five_prime_UTR.1;Parent=PAC:27045442;pacid=27045442
+Chr01	phytozome9_0	CDS	8409	8618	.	+	0	ID=PAC:27045442.CDS.1;Parent=PAC:27045442;pacid=27045442
+Chr01	phytozome9_0	three_prime_UTR	8619	8860	.	+	.	ID=PAC:27045442.three_prime_UTR.1;Parent=PAC:27045442;pacid=27045442
