@@ -234,7 +234,7 @@ generate.metadata.table.pl - Generate metadata.tbl files
 
 =head1 SYNOPSIS
 
-  meta2.table.pl 
+  generate.metadata.table.pl 
 
 Options:
 
@@ -280,7 +280,7 @@ Jim Thomason E<lt>thomason@cshl.eduE<gt>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2012 Cold Spring Harbor Laboratory
+Copyright (c) 2012-2013 Cold Spring Harbor Laboratory
 
 This module is free software; you can redistribute it and/or
 modify it under the terms of the GPL (either version 1, or at
