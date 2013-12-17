@@ -136,6 +136,8 @@ $(package_dir)/proteins.fa: $(dump_dir)/proteins.fa.gz
 
 $(package_dir)/provenance.json: $(package_dir)/metadata.tbl
 	@ echo "Creating provenance file"
+	@ $(SCRIPTDIR)/gramene-provenance.pl -o $(package_dir)/provenance.json \
+		$(package_dir)/metadata.tbl
 
 package-$(genome): $(stage_dir) $(package_dir) \
 	$(package_dir)/features.tab \
@@ -145,6 +147,12 @@ package-$(genome): $(stage_dir) $(package_dir) \
 	$(package_dir)/proteins.fa \
 	$(package_dir)/metadata.tbl \
 	$(package_dir)/provenance.json
+	@ $(eval version := $(shell awk '/^assembly-version/{getline;print}' \
+		$(package_dir)/metadata.tbl))
+	@ cp -r $(package_dir) $(stage_dir)/$(version)
+	@ tar zcvf $(stage_dir)/$(version).tar.gz -C $(stage_dir) $(version)
+	@ rm -rf $(stage_dir)/$(version)
+	@ echo "Package placed in $(stage_dir)/$(version).tar.gz"
 
 run: init fetch-$(genome) package-$(genome)
 
