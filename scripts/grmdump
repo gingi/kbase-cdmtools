@@ -6,9 +6,13 @@ release     ?= 39
 
 SCRIPTDIR    = $(dir $(firstword $(MAKEFILE_LIST)))
 SQLDIR       = $(SCRIPTDIR)/../sql
-FTP_BASEDIR ?= ftp://anonymous@ftp.gramene.org/pub/gramene/release$(release)/data
+
+FTP_BASEDIR ?= \
+	 ftp://anonymous@ftp.gramene.org/pub/gramene/release$(release)/data
 FASTADIR    ?= $(FTP_BASEDIR)/fasta
 GFFDIR      ?= $(FTP_BASEDIR)/gff
+GODIR       ?= $(FTP_BASEDIR)/ontology/go
+
 STAGING_DIR ?= ./staging/gramene/$(release)
 ESEARCH      = http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&field=Scientific+Name&term=
 EFETCH       = http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=
@@ -81,12 +85,16 @@ $(dump_dir)/proteins.fa.gz:
 
 $(dump_dir)/genes.gff.gz:
 	@ $(eval $(call fetch,$(GFFDIR),$(genome).gff.gz,annotations))
+
+$(dump_dir)/ontology.gaf:
+	@ $(eval $(call fetch,$(GODIR),go_ensembl_$(genome).gaf,ontology))
 	
 fetch-$(genome): $(stage_dir) $(dump_dir) \
 	$(dump_dir)/assembly.fa.gz \
 	$(dump_dir)/proteins.fa.gz \
 	$(dump_dir)/annotation_info.txt.gz \
-	$(dump_dir)/genes.gff.gz	
+	$(dump_dir)/genes.gff.gz \
+	$(dump_dir)/ontology.gaf
 
 $(genome)-dbname: $(dbname)
 	@ echo "Getting database name"
@@ -103,17 +111,33 @@ $(package_dir)/functions.tab: $(genome)-dbname
 	@ $(MYSQL) -N $(dbname) < $(SQLDIR)/ensembl_feature_functions.sql \
 		> $(package_dir)/functions.tab
 
-$(package_dir)/ontology.tab: $(genome)-dbname
+$(package_dir)/ontology.tab: $(dump_dir)/ontology.gaf
 	@ echo "Packaging ontologies"
+	@ $(SCRIPTDIR)/gaf_to_kbase.pl --output $(package_dir)/ontology.tab \
+		$(dump_dir)/ontology.gaf
 
 $(package_dir)/metadata.tbl: $(genome)-dbname
-	@ echo "Packaging metadata"	
+	@ echo "Packaging metadata"
+	@ $(SCRIPTDIR)/generate.metadata.table.pl \
+		--database $(dbname) \
+		--user $(dbuser) \
+		--host $(dbhost) \
+		--pass $(dbpass) > $(package_dir)/metadata.tbl
 
 $(package_dir)/contigs.fa: $(dump_dir)/assembly.fa.gz
-	@ echo "Packaging contigs"	
+	@ echo "Packaging contigs"
+	@ gunzip -c $(dump_dir)/assembly.fa.gz | \
+		perl -plane 's/\s+.*$$//' > $(package_dir)/contigs.fa
 
 $(package_dir)/proteins.fa: $(dump_dir)/proteins.fa.gz
-	@ echo "Packaging proteins"	
+	@ echo "Packaging proteins"
+	@ gunzip -c $(dump_dir)/proteins.fa.gz | \
+		perl -plane 's/\s+.*$$//' > $(package_dir)/proteins.fa
+
+$(package_dir)/provenance.json: $(package_dir)/metadata.tbl
+	@ echo "Creating provenance file"
+	@ $(SCRIPTDIR)/gramene-provenance.pl -o $(package_dir)/provenance.json \
+		$(package_dir)/metadata.tbl
 
 package-$(genome): $(stage_dir) $(package_dir) \
 	$(package_dir)/features.tab \
@@ -123,6 +147,14 @@ package-$(genome): $(stage_dir) $(package_dir) \
 	$(package_dir)/proteins.fa \
 	$(package_dir)/metadata.tbl \
 	$(package_dir)/provenance.json
+	@ $(eval version := $(shell awk '/^assembly-version/{getline;print}' \
+		$(package_dir)/metadata.tbl))
+	@ $(eval prefix := $(shell echo $(genome) | \
+		perl -plane 's/^([a-z])[a-z]+_([a-z]+)$$/\U$$1\E$$2/').$(version))
+	@ cp -r $(package_dir) $(stage_dir)/$(prefix)
+	@ tar zcvf $(stage_dir)/$(prefix).tar.gz -C $(stage_dir) $(prefix)
+	@ rm -rf $(stage_dir)/$(prefix)
+	@ echo "Package placed in $(stage_dir)/$(prefix).tar.gz"
 
 run: init fetch-$(genome) package-$(genome)
 
