@@ -149,10 +149,12 @@ package-$(genome): $(stage_dir) $(package_dir) \
 	$(package_dir)/provenance.json
 	@ $(eval version := $(shell awk '/^assembly-version/{getline;print}' \
 		$(package_dir)/metadata.tbl))
-	@ cp -r $(package_dir) $(stage_dir)/$(version)
-	@ tar zcvf $(stage_dir)/$(version).tar.gz -C $(stage_dir) $(version)
-	@ rm -rf $(stage_dir)/$(version)
-	@ echo "Package placed in $(stage_dir)/$(version).tar.gz"
+	@ $(eval prefix := $(shell echo $(genome) | \
+		perl -plane 's/^([a-z])[a-z]+_([a-z]+)$$/\U$$1\E$$2/').$(version))
+	@ cp -r $(package_dir) $(stage_dir)/$(prefix)
+	@ tar zcvf $(stage_dir)/$(prefix).tar.gz -C $(stage_dir) $(prefix)
+	@ rm -rf $(stage_dir)/$(prefix)
+	@ echo "Package placed in $(stage_dir)/$(prefix).tar.gz"
 
 run: init fetch-$(genome) package-$(genome)
 
