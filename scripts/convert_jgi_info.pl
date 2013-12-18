@@ -69,7 +69,7 @@ convert_jgi_info.pl
 
 =head1 SYNOPSIS
 
-gff3_to_kbase.pl [options] annotation_info_file.txt
+convert_jgi_info.pl [options] annotation_info_file.txt
 
 Options:
 
