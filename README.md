@@ -2,7 +2,7 @@
 
 Tools for converting standard data formats into KBase Exchange formats.
 
-**Version 1.0.0**
+**Version 1.0.1**
 
 ##Testing
 

@@ -1,6 +1,6 @@
 {
   "name": "cdmtools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Tools for transforming data for KBase storage",
   "main": "index.js",
   "directories": {
