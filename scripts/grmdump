@@ -22,7 +22,13 @@ dbhost ?= mysql.gramene.org
 dbuser ?= gramene_web
 dbpass ?= password
 
-genome ?= dummy
+gffkey = $(genome)
+ifeq "$(gffkey)" 'oryza_sativa'
+  override gffkey=oryza_sativa_japonica
+endif
+ifeq "$(gffkey)" 'oryza_indica'
+  override gffkey=oryza_sativa_indica
+endif
 
 stage_dir   = $(STAGING_DIR)/$(genome)
 dump_dir    = $(stage_dir)/dump
@@ -51,9 +57,10 @@ endef
 export USAGE
 
 fetch = \
-	$$(info Fetching $(3)...) \
 	$$(eval fname := $$(shell $(CURL) -s -l $(1)/ | grep '$(2)')) \
-	$$(if $$(filter $$(fname),),\
+	$$(info Genome $(genome)) \
+	$$(info Fetching $(3) ($$(fname))...) \
+	$$(if $(filter $$(fname),),\
 		$$(error Cannot find remote $(3) for $$(genome)),\
 		$$(shell $(CURL) -C - $(1)/$$(fname) -o $@))
 
@@ -77,22 +84,18 @@ $(package_dir):
 $(dump_dir)/assembly.fa.gz:
 	@ $(eval $(call fetch,$(FASTADIR)/$(genome)/dna,.dna.toplevel.fa.gz,contigs))
 
-$(dump_dir)/annotation_info.txt.gz:
-	@ echo "Fetching annotation info"
-
 $(dump_dir)/proteins.fa.gz:
 	@ $(eval $(call fetch,$(FASTADIR)/$(genome)/pep,.pep.all.fa.gz,proteins))
 
 $(dump_dir)/genes.gff.gz:
-	@ $(eval $(call fetch,$(GFFDIR),$(genome).gff.gz,annotations))
+	@ $(eval $(call fetch,$(GFFDIR),$(gffkey).gff.gz,annotations))
 
 $(dump_dir)/ontology.gaf:
-	@ $(eval $(call fetch,$(GODIR),go_ensembl_$(genome).gaf,ontology))
+	@ $(eval $(call fetch,$(GODIR),go_ensembl_$(gffkey).gaf,ontology))
 	
 fetch-$(genome): $(stage_dir) $(dump_dir) \
 	$(dump_dir)/assembly.fa.gz \
 	$(dump_dir)/proteins.fa.gz \
-	$(dump_dir)/annotation_info.txt.gz \
 	$(dump_dir)/genes.gff.gz \
 	$(dump_dir)/ontology.gaf
 
